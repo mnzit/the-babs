@@ -627,6 +627,79 @@
             if (this.flash > 0) this.flash -= 0.04;
             if (this._toast) { this._toast.t--; if (this._toast.t <= 0) this._toast = null; }
         };
+
+        // ---- Game-over demolition: pan to the base, then a clean bottom-up chain reaction:
+        //      the base house shatters to nothing, the tower above drops one slot into its place,
+        //      that new base shatters, the rest drop again... all the way up. ----
+        Lane.prototype.startDemolition = function () {
+            this.demolishing = true;
+            this.demoState = 'intro'; this._wait = 0;
+            this.isHanging = false; this.hanging = null;
+            this.targetCameraYOffset = 0;        // pan the camera down to the ground
+            this.junk.forEach(j => Composite.remove(this.engine.world, j)); this.junk = [];
+            // freeze everything so the chain is fully controlled (no chaotic physics)
+            this.blocks.forEach(b => { if (!b.isStatic) Body.setStatic(b, true); });
+        };
+
+        Lane.prototype.spawnDebris = function (x, y, w) {
+            const colors = ['#d97706', '#fef3c7', '#78350f', '#3b82f6', '#fbbf24'];
+            for (let i = 0; i < 16; i++) this.particles.push({
+                x: x + (Math.random() - 0.5) * w, y: y + (Math.random() - 0.5) * 30,
+                vx: (Math.random() - 0.5) * 9, vy: -Math.random() * 6 - 1,
+                size: Math.random() * 9 + 5, color: colors[(Math.random() * colors.length) | 0],
+                life: 1.0, decay: Math.random() * 0.012 + 0.006, gravity: true, square: true
+            });
+        };
+
+        Lane.prototype.breakBlock = function (block) {
+            this.spawnDebris(block.position.x, block.position.y, block.boxWidth || DEFAULT_BOX_WIDTH);
+            Composite.remove(this.engine.world, block);
+            const i = this.blocks.indexOf(block); if (i > -1) this.blocks.splice(i, 1);
+            playSound('collapse');
+        };
+
+        Lane.prototype.lowestBlock = function () {
+            let low = null; this.blocks.forEach(b => { if (!low || b.position.y > low.position.y) low = b; });
+            return low;
+        };
+
+        Lane.prototype.updateDemolition = function () {
+            this.swingTime += 0.013;
+            this.cameraYOffset += (this.targetCameraYOffset - this.cameraYOffset) * 0.08;
+            if (this._toast) { this._toast.t--; if (this._toast.t <= 0) this._toast = null; }
+            const FALL_FRAMES = 7;
+
+            if (this.demoState === 'intro') {
+                // let the camera settle on the base before we start
+                if (++this._wait > 18) this.demoState = 'break';
+                return;
+            }
+
+            if (this.demoState === 'break') {
+                if (this.blocks.length === 0) { this.demolishing = false; return; }
+                this.breakBlock(this.lowestBlock());                 // base house shatters to none
+                if (this.blocks.length === 0) { this.demolishing = false; return; }
+                // set up the drop: shift the rest down so the new base rests on the platform
+                const nb = this.lowestBlock();
+                const shift = (PLATFORM_Y - (nb.boxHeight || DEFAULT_BOX_HEIGHT) / 2) - nb.position.y;
+                if (shift > 0.5) {
+                    this.blocks.forEach(b => { b._fromY = b.position.y; b._toY = b.position.y + shift; });
+                    this._fall = 0; this.demoState = 'falling';
+                } else {
+                    this.demoState = 'break'; // already at base, shatter again next frame
+                }
+                return;
+            }
+
+            if (this.demoState === 'falling') {
+                this._fall++;
+                const t = Math.min(1, this._fall / FALL_FRAMES);
+                const e = t * t;                                     // ease-in = falling under gravity
+                this.blocks.forEach(b => { Body.setPosition(b, { x: b.position.x, y: b._fromY + (b._toY - b._fromY) * e }); });
+                if (t >= 1) this.demoState = 'break';
+                return;
+            }
+        };
     </script>
 
     <script>
@@ -659,10 +732,10 @@
             this.drawPlatform();
             this.drawBlocks();
             this.drawJunk();
-            this.drawCrane();
+            if (!this.demolishing) this.drawCrane();
             this.drawParticles();
             ctx.restore();
-            this.drawFlagHUD();
+            if (!this.demolishing) this.drawFlagHUD();
 
             // sabotage flash tint
             if (this.flash > 0) { ctx.fillStyle = `rgba(239,68,68,${0.18 * this.flash})`; ctx.fillRect(0, -this.cameraYOffset, CANVAS_WIDTH, CANVAS_HEIGHT); }
@@ -832,9 +905,17 @@
         Lane.prototype.drawParticles = function () {
             const ctx = this.ctx;
             for (let i = this.particles.length - 1; i >= 0; i--) {
-                const p = this.particles[i]; p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+                const p = this.particles[i];
+                if (p.gravity) p.vy += 0.35;            // debris falls
+                p.x += p.vx; p.y += p.vy; p.life -= p.decay;
                 if (p.life <= 0) { this.particles.splice(i, 1); continue; }
-                ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.4 + p.life * 0.6), 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = p.color;
+                if (p.square) {
+                    const s = p.size * (0.5 + p.life * 0.5);
+                    ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+                } else {
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.4 + p.life * 0.6), 0, Math.PI * 2); ctx.fill();
+                }
             }
         };
 
@@ -978,11 +1059,14 @@
             }
         }
 
+        let demoActive = false, demoModalShown = false;
         function endGame(winner, loser, battle) {
             matchActive = false;
             if (windTimer) { clearInterval(windTimer); windTimer = null; }
-            document.getElementById('gameover-modal').classList.remove('hidden');
-            document.getElementById('gameover-modal').classList.add('flex');
+            // Don't show the modal yet -- first play the demolition, then reveal it (see gameLoop).
+            demoActive = true; demoModalShown = false;
+            ['solo-controls', 'battle-controls', 'turn-hud'].forEach(id => { const e = document.getElementById(id); if (e) { e.classList.add('hidden'); e.classList.remove('flex'); } });
+            lanes.forEach(l => l.startDemolition());
             const title = document.getElementById('gameover-title');
             const summary = document.getElementById('gameover-summary');
             const stats = document.getElementById('gameover-stats');
@@ -1007,6 +1091,7 @@
         function resetToLobby() {
             playSound('click');
             matchActive = false;
+            demoActive = false; demoModalShown = false;
             if (windTimer) { clearInterval(windTimer); windTimer = null; }
             document.getElementById('lobby-modal').classList.remove('opacity-0', 'pointer-events-none');
             document.getElementById('gameover-modal').classList.add('hidden');
@@ -1037,7 +1122,17 @@
         }
 
         function gameLoop() {
-            lanes.forEach(l => { if (matchActive && l.alive) l.updatePhysics(); l.render(); });
+            lanes.forEach(l => {
+                if (matchActive && l.alive) l.updatePhysics();
+                else if (l.demolishing) l.updateDemolition();
+                l.render();
+            });
+            // once every lane has finished crumbling, reveal the game-over screen
+            if (demoActive && !demoModalShown && lanes.length && lanes.every(l => !l.demolishing)) {
+                demoModalShown = true;
+                const m = document.getElementById('gameover-modal');
+                m.classList.remove('hidden'); m.classList.add('flex');
+            }
             // solo DOM HUD
             if (gameMode !== 'battle' && lanes[0]) {
                 const l = lanes[0];
