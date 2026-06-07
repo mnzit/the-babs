@@ -271,9 +271,12 @@
         <!-- CONTROLLER VIEW (the phone, once paired) -->
         <div id="controller-view" class="absolute inset-0 bg-slate-900 hidden flex-col z-50 p-4 text-white">
             <div class="flex items-center justify-between">
-                <div class="text-2xl font-black bubbly-font" id="cv-name">Player</div>
+                <div class="text-xl font-black bubbly-font" id="cv-name">Player</div>
                 <div id="cv-status" class="text-xs font-bold px-2 py-1 rounded bg-emerald-500/20 text-emerald-300">connected</div>
             </div>
+            <input id="cv-nameinput" maxlength="14" placeholder="Type your name"
+                class="mt-2 w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-base font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <p class="text-[11px] text-slate-500 mt-1">This shows up on the big screen.</p>
             <button id="cv-drop" class="flex-1 my-4 rounded-3xl bg-gradient-to-br from-indigo-500 to-indigo-700 active:scale-95 transition-transform flex flex-col items-center justify-center shadow-2xl">
                 <span class="text-6xl font-black bubbly-font tracking-wider">DROP</span>
                 <span class="text-sm text-indigo-100/80 mt-2">tap to drop your house</span>
@@ -1058,6 +1061,16 @@
         function remoteDrop(slot) { const li = gameMode === 'battle' ? (slot - 1) : 0; if (lanes[li]) lanes[li].drop(); }
         function remoteSpell(slot, spell) { const li = gameMode === 'battle' ? (slot - 1) : 0; if (lanes[li] && gameMode !== 'battle') lanes[li].queueSpell(spell); }
 
+        // A controller named themselves on their phone -> apply it everywhere.
+        function setPlayerName(slot, name) {
+            const p = players[slot - 1];
+            if (!p) return;
+            p.name = (name || '').trim() || p.name;
+            updateLobbyUI();
+            const el = document.getElementById('p' + slot + '-name'); if (el) el.innerText = p.name;
+            if (typeof updateControllerUI === 'function') updateControllerUI();
+        }
+
         function slotCount() { return gameMode === 'battle' ? 2 : players.length; }
 
         function buildPairList() {
@@ -1175,13 +1188,13 @@
             watchIce(pc, (t) => { const el = document.getElementById('pair-status'); if (el) el.innerText = t; });
             const dc = pc.createDataChannel('ctrl');
             peers[slot] = { pc, dc, connected: false };
-            dc.onopen = () => { markSlotConnected(slot, true); closePairModal(); };
+            dc.onopen = () => { markSlotConnected(slot, true); closePairModal(); try { dc.send(JSON.stringify({ a: 'welcome', slot: slot })); } catch (_) {} };
             dc.onclose = () => markSlotConnected(slot, false);
             dc.onmessage = (e) => {
                 let m; try { m = JSON.parse(e.data); } catch (_) { return; }
                 if (m.a === 'drop') remoteDrop(slot);
                 else if (m.a === 'spell') remoteSpell(slot, m.s);
-                else if (m.a === 'name' && players[slot - 1]) { players[slot - 1].name = m.n || players[slot - 1].name; updateLobbyUI(); if (gameMode === 'battle') { const el = document.getElementById('p' + slot + '-name'); if (el) el.innerText = players[slot - 1].name; } }
+                else if (m.a === 'name' && players[slot - 1]) { setPlayerName(slot, m.n); }
             };
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
@@ -1254,13 +1267,24 @@
         function wireJoinChannel() {
             joinDC.onopen = () => showControllerView();
             joinDC.onclose = () => { const s = document.getElementById('cv-status'); if (s) { s.innerText = 'disconnected'; s.className = 'text-xs font-bold px-2 py-1 rounded bg-rose-500/20 text-rose-300'; } };
+            joinDC.onmessage = (e) => {
+                let m; try { m = JSON.parse(e.data); } catch (_) { return; }
+                if (m.a === 'welcome') { const el = document.getElementById('cv-name'); if (el) el.innerText = 'Player ' + m.slot; }
+            };
         }
         function cvSend(obj) { if (joinDC && joinDC.readyState === 'open') joinDC.send(JSON.stringify(obj)); }
+        let cvWired = false;
 
         function showControllerView() {
             document.getElementById('join-overlay').classList.add('hidden');
             const cv = document.getElementById('controller-view');
             cv.classList.remove('hidden'); cv.classList.add('flex');
+            const nameInput = document.getElementById('cv-nameinput');
+            // send whatever name is already typed (so it applies even without further edits)
+            if (nameInput.value.trim()) cvSend({ a: 'name', n: nameInput.value.trim() });
+            if (cvWired) return; // only bind listeners once
+            cvWired = true;
+            nameInput.addEventListener('input', () => { const v = nameInput.value.trim(); if (v) cvSend({ a: 'name', n: v }); });
             const drop = document.getElementById('cv-drop');
             const fire = (e) => { e.preventDefault(); if (navigator.vibrate) navigator.vibrate(15); cvSend({ a: 'drop' }); };
             drop.addEventListener('touchstart', fire, { passive: false });
