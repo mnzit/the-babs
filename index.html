@@ -26,7 +26,20 @@
 </head>
 <body class="h-screen w-screen overflow-hidden text-slate-800">
 
+    <!-- Looping background music (kept low) -->
+    <audio id="bgm" loop preload="auto"><source src="assets/theme.mp3" type="audio/mpeg"></audio>
+
     <script>
+        // Start the looping theme quietly (called from the START button, which is a user gesture
+        // so browsers allow playback). Safe to call repeatedly.
+        function startMusic() {
+            const a = document.getElementById('bgm');
+            if (!a) return;
+            a.volume = 0.15;
+            const p = a.play();
+            if (p && p.catch) p.catch(function () {});
+        }
+
         // ---------------------------------------------------------------------------
         // Procedural sound effects (Web Audio)
         // ---------------------------------------------------------------------------
@@ -973,6 +986,7 @@
         function startGame() {
             if (gameMode === 'battle' && players.length !== 2) { updateLobbyUI(); return; }
             playSound('perfect');
+            startMusic();
             buildLanes();
             matchActive = true;
             lanes.forEach(l => { l.players.forEach(p => p.spellEnergy = 2); l.spawnHanging(); });
