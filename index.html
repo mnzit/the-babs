@@ -6,8 +6,9 @@
     <title>The Babs - Physics Party Game</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body {
@@ -1077,16 +1078,65 @@
         }
         function markSlotConnected(slot, ok) { if (peers[slot]) peers[slot].connected = ok; buildPairList(); }
 
-        // ---- SDP helpers (compact + local-only candidates so the QR stays small) ----
-        function packSDP(desc) { return JSON.stringify({ t: desc.type[0], s: desc.sdp }); }
-        function unpackSDP(str) { const j = JSON.parse(str); return { type: j.t === 'o' ? 'offer' : 'answer', sdp: j.s }; }
+        // STUN gives each peer a real-IP reflexive candidate so same-WiFi devices can actually
+        // reach each other (without it, browsers only expose obfuscated .local mDNS candidates
+        // that often fail to connect across devices).
+        const RTC_CONFIG = { iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ] };
+
+        // base45 (RFC 9285) packs binary into QR's efficient ALPHANUMERIC charset, so the QR has
+        // far fewer modules than base64 (which forces dense byte-mode) -> much easier to scan.
+        const B45 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+        function b45encode(bytes) {
+            let out = '';
+            for (let i = 0; i < bytes.length; i += 2) {
+                if (i + 1 < bytes.length) {
+                    let x = bytes[i] * 256 + bytes[i + 1];
+                    const c = x % 45; x = (x - c) / 45; const d = x % 45; const e = (x - d) / 45;
+                    out += B45[c] + B45[d] + B45[e];
+                } else {
+                    let x = bytes[i]; const c = x % 45; const d = (x - c) / 45;
+                    out += B45[c] + B45[d];
+                }
+            }
+            return out;
+        }
+        function b45decode(str) {
+            const out = [];
+            for (let i = 0; i < str.length;) {
+                const rem = str.length - i;
+                if (rem >= 3) { const n = B45.indexOf(str[i]) + B45.indexOf(str[i + 1]) * 45 + B45.indexOf(str[i + 2]) * 2025; out.push((n >> 8) & 0xff, n & 0xff); i += 3; }
+                else if (rem === 2) { const n = B45.indexOf(str[i]) + B45.indexOf(str[i + 1]) * 45; out.push(n & 0xff); i += 2; }
+                else break;
+            }
+            return new Uint8Array(out);
+        }
+        function packSDP(desc) {
+            const json = JSON.stringify({ t: desc.type[0], s: desc.sdp });
+            return b45encode(pako.deflate(json));
+        }
+        function unpackSDP(str) {
+            const j = JSON.parse(pako.inflate(b45decode(str.trim().toUpperCase()), { to: 'string' }));
+            return { type: j.t === 'o' ? 'offer' : 'answer', sdp: j.s };
+        }
         function waitIce(pc) {
             return new Promise(res => {
                 if (pc.iceGatheringState === 'complete') return res();
                 const done = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', done); res(); } };
                 pc.addEventListener('icegatheringstatechange', done);
-                setTimeout(res, 2500); // proceed with whatever candidates we have
+                setTimeout(res, 3500); // proceed with whatever candidates we have
             });
+        }
+        function watchIce(pc, setStatus) {
+            pc.oniceconnectionstatechange = () => {
+                const s = pc.iceConnectionState;
+                if (s === 'checking') setStatus('connecting over WiFi...');
+                else if (s === 'connected' || s === 'completed') setStatus('connected!');
+                else if (s === 'failed') setStatus('could not connect - same WiFi? avoid guest networks');
+                else if (s === 'disconnected') setStatus('connection dropped');
+            };
         }
 
         // ---- Camera QR scanning (jsQR) ----
@@ -1109,11 +1159,20 @@
             return ctrl;
         }
 
-        function makeQR(el, text) { el.innerHTML = ''; new QRCode(el, { text: text, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.L }); }
+        function makeQR(el, text) {
+            const qr = qrcode(0, 'L');               // auto version, low EC = fewest modules
+            qr.addData(text.toUpperCase(), 'Alphanumeric');
+            qr.make();
+            const size = Math.min(360, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.82));
+            el.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 4, scalable: true });
+            const svg = el.querySelector('svg');
+            if (svg) { svg.setAttribute('width', size); svg.setAttribute('height', size); svg.style.width = size + 'px'; svg.style.height = size + 'px'; svg.style.display = 'block'; }
+        }
 
         // ---- HOST side ----
         async function hostPair(slot) {
-            const pc = new RTCPeerConnection({ iceServers: [] });
+            const pc = new RTCPeerConnection(RTC_CONFIG);
+            watchIce(pc, (t) => { const el = document.getElementById('pair-status'); if (el) el.innerText = t; });
             const dc = pc.createDataChannel('ctrl');
             peers[slot] = { pc, dc, connected: false };
             dc.onopen = () => { markSlotConnected(slot, true); closePairModal(); };
@@ -1178,7 +1237,8 @@
         }
 
         async function joinFromOffer(text) {
-            const pc = new RTCPeerConnection({ iceServers: [] });
+            const pc = new RTCPeerConnection(RTC_CONFIG);
+            watchIce(pc, (t) => { const el = document.getElementById('join-status'); if (el) el.innerText = t; });
             joinPC = pc;
             pc.ondatachannel = (e) => { joinDC = e.channel; wireJoinChannel(); };
             await pc.setRemoteDescription(unpackSDP(text));
