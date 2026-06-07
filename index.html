@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Babs - Physics Party Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 100%);
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .bubbly-font { font-family: 'Fredoka', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.05); }
+        ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 3px; }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden text-slate-800">
+
+    <script>
+        // ---------------------------------------------------------------------------
+        // Procedural sound effects (Web Audio)
+        // ---------------------------------------------------------------------------
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        function playSound(type) {
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                if (type === 'drop') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.3);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                } else if (type === 'hit') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(120, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.25);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now); osc.stop(now + 0.25);
+                } else if (type === 'perfect') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.1);
+                    osc.frequency.setValueAtTime(783.99, now + 0.2);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4);
+                } else if (type === 'wobble') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.linearRampToValueAtTime(280, now + 0.15);
+                    osc.frequency.linearRampToValueAtTime(220, now + 0.3);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                } else if (type === 'spell') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.4);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4);
+                } else if (type === 'collapse') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(100, now);
+                    osc.frequency.exponentialRampToValueAtTime(20, now + 0.8);
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(150, now);
+                    filter.frequency.exponentialRampToValueAtTime(40, now + 0.8);
+                    osc.disconnect(gain); osc.connect(filter); filter.connect(gain);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+                    osc.start(now); osc.stop(now + 0.8);
+                } else if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now); osc.stop(now + 0.08);
+                }
+            } catch (e) { /* ignore */ }
+        }
+    </script>
+
+    <!-- FULLSCREEN ARENA -->
+    <div id="arena" class="relative w-screen h-screen overflow-hidden select-none bg-sky-200">
+
+        <!-- One or two play lanes (each its own canvas) -->
+        <div id="lanes" class="absolute inset-0 flex z-0">
+            <div class="relative flex-1 h-full"><canvas id="lane-canvas-0" class="w-full h-full block touch-none"></canvas></div>
+            <div id="lane-wrap-1" class="relative flex-1 h-full border-l-4 border-white/50 hidden"><canvas id="lane-canvas-1" class="w-full h-full block touch-none"></canvas></div>
+        </div>
+
+        <!-- TOP HUD BAR -->
+        <div class="absolute top-0 inset-x-0 z-20 flex justify-between items-center gap-2 px-3 py-2 bg-white/70 backdrop-blur-sm border-b border-white/50">
+            <div class="flex items-center gap-2 min-w-0">
+                <div class="min-w-0">
+                    <h1 class="text-base sm:text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-indigo-600 to-teal-500 bubbly-font leading-tight">THE BABS</h1>
+                    <p id="game-mode-badge" class="text-[9px] sm:text-xs font-semibold text-teal-600 uppercase tracking-widest bg-teal-50 px-2 py-0.5 rounded border border-teal-200 w-max">Solo Mode</p>
+                </div>
+            </div>
+            <div id="solo-stats" class="flex gap-3 sm:gap-4 shrink-0">
+                <div class="text-right">
+                    <span class="text-[8px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-wider block leading-none">Altitude</span>
+                    <span id="max-height-val" class="text-sm sm:text-xl font-black text-indigo-600 bubbly-font">0.00 m</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-[8px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-wider block leading-none">Wind</span>
+                    <span id="wind-speed-val" class="text-sm sm:text-xl font-black text-amber-600 bubbly-font">Calm</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CURRENT TURN HUD (solo / co-op) -->
+        <div id="turn-hud" class="absolute top-[52px] sm:top-[68px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-white/85 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-md border border-white/60 max-w-[92vw]">
+            <div id="ctrl-player-color" class="w-3 h-3 rounded-full bg-cyan-400 shrink-0"></div>
+            <h2 id="ctrl-player-name" class="text-sm font-black bubbly-font text-indigo-900 truncate">Player 1</h2>
+            <span class="text-slate-300 hidden sm:inline">-</span>
+            <p id="ctrl-turn-prompt" class="text-xs text-slate-500 truncate hidden sm:block">Tap anywhere to drop!</p>
+        </div>
+
+        <!-- BOTTOM CONTROLS: SOLO / CO-OP -->
+        <div id="solo-controls" class="absolute bottom-0 inset-x-0 z-20 px-2 sm:px-4 pb-3 pt-10 flex items-end justify-between gap-2 pointer-events-none bg-gradient-to-t from-sky-900/15 to-transparent">
+            <div class="pointer-events-auto flex flex-col items-start gap-1.5">
+                <span class="text-[10px] font-black text-white bg-pink-500/90 px-2 py-0.5 rounded-full shadow">Energy <span id="spell-energy-val">1</span></span>
+                <button onclick="queueSpell('wind')" id="spell-wind" class="w-12 h-12 sm:w-16 sm:h-14 rounded-2xl bg-white/90 border border-slate-200 shadow flex flex-col items-center justify-center active:scale-95 transition-all">
+                    <span class="text-[11px] font-black text-cyan-700 bubbly-font leading-none">WIND</span><span class="text-[7px] font-bold text-slate-400 mt-0.5">cost 1</span>
+                </button>
+                <button onclick="queueSpell('ice')" id="spell-ice" class="w-12 h-12 sm:w-16 sm:h-14 rounded-2xl bg-white/90 border border-slate-200 shadow flex flex-col items-center justify-center active:scale-95 transition-all">
+                    <span class="text-[11px] font-black text-sky-700 bubbly-font leading-none">ICE</span><span class="text-[7px] font-bold text-slate-400 mt-0.5">cost 1</span>
+                </button>
+                <button onclick="queueSpell('anvil')" id="spell-anvil" class="w-12 h-12 sm:w-16 sm:h-14 rounded-2xl bg-white/90 border border-slate-200 shadow flex flex-col items-center justify-center active:scale-95 transition-all">
+                    <span class="text-[11px] font-black text-amber-700 bubbly-font leading-none">ANVIL</span><span class="text-[7px] font-bold text-slate-400 mt-0.5">cost 2</span>
+                </button>
+            </div>
+            <div id="drop-hint" class="pointer-events-none mb-2 px-4 py-1.5 rounded-full bg-indigo-600/90 text-white font-black bubbly-font text-sm sm:text-base shadow-lg animate-pulse">TAP TO DROP</div>
+            <div class="pointer-events-auto flex flex-col gap-1.5">
+                <button onclick="playSound('perfect')" class="w-12 h-9 sm:w-14 sm:h-10 rounded-xl bg-white/90 border border-slate-200 shadow text-emerald-600 font-black text-[11px] bubbly-font active:scale-95 transition-all">YAY</button>
+                <button onclick="playSound('wobble')" class="w-12 h-9 sm:w-14 sm:h-10 rounded-xl bg-white/90 border border-slate-200 shadow text-pink-600 font-black text-[11px] bubbly-font active:scale-95 transition-all">BOO</button>
+            </div>
+        </div>
+
+        <!-- BOTTOM CONTROLS: BATTLE (two drop buttons) -->
+        <div id="battle-controls" class="absolute bottom-0 inset-x-0 z-20 px-3 pb-4 pt-10 hidden items-end justify-between gap-3 pointer-events-none bg-gradient-to-t from-sky-900/15 to-transparent">
+            <button id="p1-drop" class="pointer-events-auto flex-1 max-w-[46%] py-4 rounded-2xl border-4 border-white/80 bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg active:scale-95 transition-all text-white">
+                <div id="p1-name" class="font-black text-base sm:text-xl bubbly-font uppercase leading-none">Player 1</div>
+                <div class="text-[10px] text-indigo-100/90 font-bold mt-1">tap here or SPACE</div>
+            </button>
+            <button id="p2-drop" class="pointer-events-auto flex-1 max-w-[46%] py-4 rounded-2xl border-4 border-white/80 bg-gradient-to-br from-rose-500 to-rose-700 shadow-lg active:scale-95 transition-all text-white">
+                <div id="p2-name" class="font-black text-base sm:text-xl bubbly-font uppercase leading-none">Player 2</div>
+                <div class="text-[10px] text-rose-100/90 font-bold mt-1">tap here or ENTER</div>
+            </button>
+        </div>
+
+        <!-- LOBBY MODAL -->
+        <div id="lobby-modal" class="absolute inset-0 bg-sky-100/95 flex flex-col justify-center items-center z-40 p-4 sm:p-8 overflow-y-auto transition-all duration-500">
+            <div class="max-w-xl w-full text-center space-y-5 my-auto">
+                <div class="space-y-2">
+                    <h2 class="text-4xl sm:text-5xl font-extrabold bubbly-font text-indigo-900 drop-shadow-sm">THE BABS</h2>
+                    <p class="text-slate-600 text-sm font-medium">Stack the tallest tower. Miss the stack and you fall.</p>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <button onclick="setMode('selfish')" id="btn-mode-selfish" class="p-3 rounded-2xl border-2 border-indigo-500 bg-white shadow-sm text-left hover:scale-105 transition-all">
+                        <div class="font-black text-sm text-indigo-950">Solo</div>
+                        <div class="text-[10px] text-slate-500 leading-tight">One player, one tower. Climb as high as you can.</div>
+                    </button>
+                    <button onclick="setMode('battle')" id="btn-mode-battle" class="p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50 text-left hover:scale-105 transition-all opacity-70">
+                        <div class="font-black text-sm text-slate-800">Battle</div>
+                        <div class="text-[10px] text-slate-500 leading-tight">Two players, two towers, side by side. Combos sabotage your rival.</div>
+                    </button>
+                    <button onclick="setMode('coop')" id="btn-mode-coop" class="p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50 text-left hover:scale-105 transition-all opacity-70">
+                        <div class="font-black text-sm text-slate-800">Co-op</div>
+                        <div class="text-[10px] text-slate-500 leading-tight">Take turns on one shared tower.</div>
+                    </button>
+                </div>
+
+                <div class="bg-white/70 border border-indigo-100 rounded-2xl p-4 text-left shadow-sm">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex justify-between">
+                        <span>Players</span>
+                        <span id="player-count-label">1 player</span>
+                    </h3>
+                    <div class="space-y-2" id="lobby-player-slots"></div>
+                    <p id="battle-note" class="text-[11px] text-rose-600 font-semibold mt-2 hidden">Battle needs exactly 2 players.</p>
+                </div>
+
+                <!-- Phone controllers over WiFi, peer-to-peer, no server -->
+                <div class="bg-white/70 border border-indigo-100 rounded-2xl p-4 shadow-sm text-left">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Phone controllers (WiFi, no server)</h3>
+                    <p class="text-[11px] text-slate-500 mb-3">Pair a phone to each player. On the phone, open this same page and tap the join button, then scan to connect. Same WiFi required.</p>
+                    <div id="pair-list" class="flex flex-col gap-2"></div>
+                    <button onclick="enterJoinMode()" class="mt-3 w-full py-2 rounded-xl border border-indigo-300 text-indigo-600 font-bold text-sm hover:bg-indigo-50 transition-all">This phone is joining a game</button>
+                </div>
+
+                <button onclick="startGame()" class="w-full py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 shadow-md hover:scale-[1.02] active:scale-95 transition-all bubbly-font uppercase tracking-wider">
+                    START
+                </button>
+            </div>
+        </div>
+
+        <!-- GAME OVER MODAL -->
+        <div id="gameover-modal" class="absolute inset-0 bg-slate-900/90 hidden flex-col justify-center items-center z-40 p-6 text-center">
+            <div class="max-w-md w-full space-y-6 text-white">
+                <div class="space-y-2">
+                    <h2 id="gameover-title" class="text-3xl sm:text-4xl font-black bubbly-font text-red-400">TOWER COLLAPSED</h2>
+                    <p id="gameover-summary" class="text-slate-300 text-sm"></p>
+                </div>
+                <div id="gameover-stats" class="bg-slate-800 border border-slate-700 rounded-2xl p-4 grid grid-cols-2 gap-4"></div>
+                <button onclick="resetToLobby()" class="w-full py-3.5 rounded-xl font-black text-white bg-indigo-600 hover:bg-indigo-500 transition-all bubbly-font">BACK TO LOBBY</button>
+            </div>
+        </div>
+
+        <!-- HOST PAIRING MODAL: show offer QR, then scan the phone's reply -->
+        <div id="pair-modal" class="absolute inset-0 bg-slate-900/95 hidden flex-col justify-center items-center z-50 p-6 text-center">
+            <div class="max-w-sm w-full space-y-4 text-white">
+                <h2 class="text-2xl font-black bubbly-font" id="pair-title">Pair Player 1</h2>
+                <div id="pair-step1">
+                    <p class="text-sm text-slate-300 mb-3">1. On the phone, open this page, tap "This phone is joining", and scan this code:</p>
+                    <div id="pair-qr" class="bg-white p-3 rounded-2xl inline-block"></div>
+                    <button onclick="pairStartScan()" class="mt-4 w-full py-3 rounded-xl font-black bubbly-font bg-emerald-500 hover:bg-emerald-400">2. SCAN PHONE'S REPLY</button>
+                </div>
+                <div id="pair-step2" class="hidden">
+                    <p class="text-sm text-slate-300 mb-2">Point this camera at the phone's reply code:</p>
+                    <video id="pair-video" class="w-full rounded-2xl bg-black" playsinline muted></video>
+                </div>
+                <p id="pair-status" class="text-xs text-amber-300 font-bold"></p>
+                <button onclick="closePairModal()" class="w-full py-2 rounded-xl border border-slate-600 text-slate-300 text-sm">Cancel</button>
+            </div>
+        </div>
+
+        <!-- JOIN OVERLAY (the phone): scan host, show reply, then become a controller -->
+        <div id="join-overlay" class="absolute inset-0 bg-slate-900 hidden flex-col justify-center items-center z-50 p-6 text-center">
+            <div class="max-w-sm w-full space-y-4 text-white">
+                <h2 class="text-2xl font-black bubbly-font">Join a game</h2>
+                <div id="join-step1">
+                    <p class="text-sm text-slate-300 mb-2">1. Scan the host screen's code:</p>
+                    <video id="join-video" class="w-full rounded-2xl bg-black" playsinline muted></video>
+                    <button onclick="joinStartScan()" class="mt-3 w-full py-3 rounded-xl font-black bubbly-font bg-indigo-500 hover:bg-indigo-400">START CAMERA</button>
+                </div>
+                <div id="join-step2" class="hidden">
+                    <p class="text-sm text-slate-300 mb-3">2. Show this reply code to the host screen:</p>
+                    <div id="join-qr" class="bg-white p-3 rounded-2xl inline-block"></div>
+                    <p class="text-xs text-slate-400 mt-3">Waiting for the host to scan you...</p>
+                </div>
+                <p id="join-status" class="text-xs text-amber-300 font-bold"></p>
+                <button onclick="location.reload()" class="w-full py-2 rounded-xl border border-slate-600 text-slate-300 text-sm">Cancel</button>
+            </div>
+        </div>
+
+        <!-- CONTROLLER VIEW (the phone, once paired) -->
+        <div id="controller-view" class="absolute inset-0 bg-slate-900 hidden flex-col z-50 p-4 text-white">
+            <div class="flex items-center justify-between">
+                <div class="text-2xl font-black bubbly-font" id="cv-name">Player</div>
+                <div id="cv-status" class="text-xs font-bold px-2 py-1 rounded bg-emerald-500/20 text-emerald-300">connected</div>
+            </div>
+            <button id="cv-drop" class="flex-1 my-4 rounded-3xl bg-gradient-to-br from-indigo-500 to-indigo-700 active:scale-95 transition-transform flex flex-col items-center justify-center shadow-2xl">
+                <span class="text-6xl font-black bubbly-font tracking-wider">DROP</span>
+                <span class="text-sm text-indigo-100/80 mt-2">tap to drop your house</span>
+            </button>
+            <div class="grid grid-cols-3 gap-2">
+                <button data-cspell="wind" class="cv-spell py-3 rounded-2xl bg-slate-800 border border-slate-700 font-black text-cyan-300 bubbly-font active:scale-95">WIND</button>
+                <button data-cspell="ice" class="cv-spell py-3 rounded-2xl bg-slate-800 border border-slate-700 font-black text-sky-300 bubbly-font active:scale-95">ICE</button>
+                <button data-cspell="anvil" class="cv-spell py-3 rounded-2xl bg-slate-800 border border-slate-700 font-black text-amber-300 bubbly-font active:scale-95">ANVIL</button>
+            </div>
+            <p class="text-center text-[11px] text-slate-500 mt-2">Spells only apply in Solo / Co-op.</p>
+        </div>
+
+    </div>
+
+    <script>
+        // ---------------------------------------------------------------------------
+        // Matter aliases & world constants (each lane is a 550x700 world)
+        // ---------------------------------------------------------------------------
+        const Engine = Matter.Engine, Bodies = Matter.Bodies, Composite = Matter.Composite, Body = Matter.Body;
+        const CANVAS_WIDTH = 550, CANVAS_HEIGHT = 700, PLATFORM_Y = 620;
+        const DEFAULT_BOX_WIDTH = 110, DEFAULT_BOX_HEIGHT = 65;
+        const pivotX = CANVAS_WIDTH / 2;
+        const ropeLength = 265;
+        const HANG_OFFSET = 200 + 265; // crane sits this far above the tower top
+
+        // Houses shrink as you climb: full size < 200m, then -10% per 100m (min 40%).
+        function shrinkScale(drops) {
+            const altitude = drops * 10;
+            if (altitude < 200) return 1.0;
+            const steps = Math.floor((altitude - 200) / 100) + 1;
+            return Math.max(0.4, 1.0 - 0.1 * steps);
+        }
+
+        // ---------------------------------------------------------------------------
+        // Players & lobby
+        // ---------------------------------------------------------------------------
+        const COLOR_POOL = ['#3b82f6', '#ec4899', '#f59e0b', '#8b5cf6', '#10b981', '#f97316'];
+        let players = [ { id: 1, name: "Player 1", color: COLOR_POOL[0], isAI: false } ];
+        let gameMode = 'selfish';
+        let matchActive = false;
+        let lanes = [];
+        let windTimer = null;
+
+        function setMode(mode) {
+            playSound('click');
+            gameMode = mode;
+            [['selfish','btn-mode-selfish'],['battle','btn-mode-battle'],['coop','btn-mode-coop']].forEach(([m,id]) => {
+                const el = document.getElementById(id);
+                el.classList.toggle('border-indigo-500', mode === m);
+                el.classList.toggle('bg-white', mode === m);
+                el.classList.toggle('border-slate-200', mode !== m);
+                el.classList.toggle('opacity-70', mode !== m);
+            });
+            const badge = document.getElementById('game-mode-badge');
+            const label = mode === 'selfish' ? 'Solo Mode' : (mode === 'battle' ? 'Battle Mode' : 'Co-op Mode');
+            badge.innerText = label;
+
+            if (mode === 'battle') {
+                while (players.length < 2) addPlayer();
+                if (players.length > 2) players = players.slice(0, 2);
+            } else if (mode === 'selfish') {
+                if (players.length > 1) players = players.slice(0, 1);
+            }
+            updateLobbyUI();
+        }
+
+        function updateLobbyUI() {
+            const c = document.getElementById('lobby-player-slots');
+            c.innerHTML = '';
+            players.forEach((p, idx) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200';
+                row.innerHTML = `
+                    <span class="w-3.5 h-3.5 rounded-full shrink-0" style="background-color:${p.color}"></span>
+                    <input value="${p.name.replace(/"/g,'&quot;')}" maxlength="14" oninput="renamePlayer(${idx}, this.value)"
+                        class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2 py-1 text-sm font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                    <button onclick="toggleAI(${idx})" class="text-[10px] font-semibold px-2 py-1 rounded shrink-0 ${p.isAI ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-teal-100 text-teal-700 border border-teal-200'}">${p.isAI ? 'AI' : 'Human'}</button>
+                    ${players.length > 1 ? `<button onclick="removePlayer(${idx})" class="text-xs text-rose-500 hover:text-rose-600 font-bold px-1 shrink-0">remove</button>` : ''}`;
+                c.appendChild(row);
+            });
+            const maxPlayers = gameMode === 'battle' ? 2 : 4;
+            if (players.length < maxPlayers) {
+                const add = document.createElement('button');
+                add.className = 'w-full flex items-center justify-center p-2 rounded-xl border border-dashed border-indigo-500/40 hover:bg-indigo-50 text-indigo-500 text-xs font-bold transition-all';
+                add.innerText = 'ADD PLAYER';
+                add.onclick = addPlayer;
+                c.appendChild(add);
+            }
+            document.getElementById('player-count-label').innerText = players.length + (players.length === 1 ? ' player' : ' players');
+            document.getElementById('battle-note').classList.toggle('hidden', !(gameMode === 'battle' && players.length !== 2));
+        }
+
+        function renamePlayer(idx, val) { players[idx].name = val.trim() || ('Player ' + (idx + 1)); }
+        function toggleAI(idx) { playSound('click'); players[idx].isAI = !players[idx].isAI; updateLobbyUI(); }
+        function removePlayer(idx) { playSound('click'); players.splice(idx, 1); updateLobbyUI(); }
+        function addPlayer() {
+            const max = gameMode === 'battle' ? 2 : 4;
+            if (players.length >= max) return;
+            playSound('click');
+            const i = players.length;
+            players.push({ id: i + 1, name: 'Player ' + (i + 1), color: COLOR_POOL[i % COLOR_POOL.length], isAI: false });
+            updateLobbyUI();
+        }
+    </script>
+
+    <script>
+        // ---------------------------------------------------------------------------
+        // Lane: a fully self-contained mini-game (own engine, crane, camera, canvas)
+        // ---------------------------------------------------------------------------
+        function Lane(canvas, lanePlayers, accent) {
+            this.canvas = canvas;
+            this.ctx = canvas.getContext('2d');
+            this.players = lanePlayers;        // turn order within this lane
+            this.currentPlayerIndex = 0;
+            this.accent = accent || '#3b82f6';
+
+            this.engine = Engine.create({ gravity: { y: 1.4 } });
+            this.ground = Bodies.rectangle(CANVAS_WIDTH / 2, PLATFORM_Y + 15, CANVAS_WIDTH - 120, 30, { isStatic: true, friction: 1.0 });
+            Composite.add(this.engine.world, [this.ground]);
+
+            this.blocks = [];
+            this.particles = [];
+            this.junk = [];               // sabotage houses dumped by the rival
+            this.hanging = null;
+            this.isHanging = false;
+            this.pending = null; this.pendingFrames = 0;
+            this.pivotY = 50; this.targetPivotY = 50;
+            this.cameraYOffset = 0; this.targetCameraYOffset = 0;
+            this.swingTime = 0;
+            this.successfulDrops = 0;
+            this.combo = 0;
+            this.currentWind = 0; this.targetWind = 0;
+            this.alive = true;
+            this.sabotage = null;
+            this.flash = 0;               // brief screen tint when sabotaged
+        }
+
+        Lane.prototype.player = function () { return this.players[this.currentPlayerIndex]; };
+
+        Lane.prototype.spawnHanging = function () {
+            if (this.hanging) Composite.remove(this.engine.world, this.hanging);
+            let w = DEFAULT_BOX_WIDTH, h = DEFAULT_BOX_HEIGHT, massMult = 1.0;
+            if (this.sabotage === 'anvil') { w = DEFAULT_BOX_WIDTH * 1.3; h = DEFAULT_BOX_HEIGHT * 1.15; massMult = 3.5; }
+            const s = shrinkScale(this.successfulDrops);
+            w *= s; h *= s;
+            const b = Bodies.rectangle(CANVAS_WIDTH / 2, this.pivotY + ropeLength, w, h, {
+                isSensor: true, isStatic: false,
+                friction: this.sabotage === 'ice' ? 0.02 : 0.95,
+                frictionStatic: this.sabotage === 'ice' ? 0.02 : 1.0,
+                frictionAir: 0.02, restitution: 0
+            });
+            Body.setMass(b, b.mass * massMult);
+            b.boxWidth = w; b.boxHeight = h;
+            b.playerCreator = this.player();
+            b.sabotageActive = this.sabotage;
+            b.eyeState = 'neutral';
+            this.hanging = b;
+            this.isHanging = true;
+        };
+
+        Lane.prototype.drop = function () {
+            if (!matchActive || !this.alive || !this.isHanging || !this.hanging) return;
+            if (this.player().isAI && !this._aiTrigger) return;
+            playSound('drop');
+            this.isHanging = false;
+            this.hanging.isSensor = false;
+            Composite.add(this.engine.world, this.hanging);
+            const swingSpeed = 1.35 + this.successfulDrops * 0.04;
+            const thetaMax = 0.52;
+            const theta = thetaMax * Math.sin(this.swingTime * swingSpeed);
+            const thetaPrime = thetaMax * swingSpeed * Math.cos(this.swingTime * swingSpeed);
+            let vx = ropeLength * thetaPrime * Math.cos(theta) * 0.006;
+            vx = Math.max(-1.2, Math.min(1.2, vx));
+            Body.setVelocity(this.hanging, { x: vx, y: 2.0 });
+            this.blocks.push(this.hanging);
+            const dropped = this.hanging;
+            this.hanging = null;
+            dropped.eyeState = 'falling';
+            this.pending = dropped; this.pendingFrames = 0;
+        };
+
+        Lane.prototype.checkSettle = function () {
+            if (!this.pending) return;
+            this.pendingFrames++;
+            const b = this.pending;
+            const speed = Math.hypot(b.velocity.x, b.velocity.y);
+            const fellOff = b.position.y > PLATFORM_Y + 120 || b.position.x < -120 || b.position.x > CANVAS_WIDTH + 120;
+            const settled = this.pendingFrames > 25 && speed < 0.4;
+            const timedOut = this.pendingFrames > 260;
+            if (fellOff || settled || timedOut) { const blk = this.pending; this.pending = null; this.evaluate(blk); }
+        };
+
+        Lane.prototype.evaluate = function (block) {
+            if (!matchActive || !this.alive) return;
+            const isFirst = this.blocks.length <= 1;
+            const supportBlock = isFirst ? null : this.blocks[this.blocks.length - 2];
+            const supportX = isFirst ? CANVAS_WIDTH / 2 : supportBlock.position.x;
+            const supportW = isFirst ? DEFAULT_BOX_WIDTH : (supportBlock.boxWidth || DEFAULT_BOX_WIDTH);
+            const offset = Math.abs(block.position.x - supportX);
+            const perfect = offset < (isFirst ? 16 : supportW * 0.13);
+            const maxStackOffset = isFirst ? 150 : supportW * 0.7;
+            const blockH = block.boxHeight || DEFAULT_BOX_HEIGHT;
+            const missedEntirely = block.position.y > PLATFORM_Y + 100;
+            const notOnTop = supportBlock && block.position.y > supportBlock.position.y - blockH * 0.4;
+
+            if (missedEntirely || offset > maxStackOffset || notOnTop) {
+                playSound('wobble');
+                this.toast('MISSED', '#f43f5e');
+                if (missedEntirely) {
+                    Composite.remove(this.engine.world, block);
+                    const i = this.blocks.indexOf(block); if (i > -1) this.blocks.splice(i, 1);
+                }
+                this.combo = 0;
+                endLane(this, block.playerCreator);
+                return;
+            }
+
+            this.spawnParticles(block.position.x, block.position.y - blockH / 2, perfect ? 16 : 8);
+            this.successfulDrops++;
+
+            if (perfect) {
+                playSound('perfect');
+                this.combo++;
+                block.eyeState = 'happy'; block.starSparkles = true;
+                if (this.combo >= 3) {
+                    this.combo = 0;
+                    this.toast('COMBO! SABOTAGE', '#10b981');
+                    triggerComboEffect(this);
+                } else {
+                    this.toast('PERFECT', '#10b981');
+                }
+            } else {
+                playSound('hit');
+                this.combo = 0;
+                if (offset > 35) { playSound('wobble'); this.toast('WOBBLY', '#d97706'); block.eyeState = 'panicked'; }
+            }
+
+            // Every 50 m (5 blocks) lock the whole tower into a solid foundation.
+            if (this.successfulDrops % 5 === 0) {
+                this.blocks.forEach(b => { if (!b.isStatic) Body.setStatic(b, true); });
+                this.toast('FOUNDATION LOCKED', '#6366f1'); playSound('spell');
+            }
+
+            // Battle: pull far enough ahead and your rival is out.
+            if (gameMode === 'battle') checkBattleLead();
+            this.advanceTurn();
+        };
+
+        Lane.prototype.advanceTurn = function () {
+            if (!matchActive || !this.alive) return;
+            this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+            this.sabotage = null;
+            this.spawnHanging();
+            updateControllerUI();
+            if (this.player().isAI) this.runAI();
+        };
+
+        Lane.prototype.runAI = function () {
+            const self = this;
+            setTimeout(function () {
+                if (!matchActive || !self.alive || !self.player().isAI) return;
+                const timer = setInterval(function () {
+                    if (!self.hanging || !self.isHanging) { clearInterval(timer); return; }
+                    const targetX = self.blocks.length ? self.blocks[self.blocks.length - 1].position.x : CANVAS_WIDTH / 2;
+                    const diff = Math.abs(self.hanging.position.x - targetX);
+                    if (diff < 16) { clearInterval(timer); self._aiTrigger = true; self.drop(); self._aiTrigger = false; }
+                }, 100);
+            }, 1200);
+        };
+
+        Lane.prototype.checkCollapse = function () {
+            if (!matchActive || !this.alive) return;
+            let collapse = false, who = null;
+            for (let i = 0; i < this.blocks.length; i++) {
+                const b = this.blocks[i];
+                if (b.isStatic) continue;
+                if (b.position.y > PLATFORM_Y + 70 || b.position.x < -100 || b.position.x > CANVAS_WIDTH + 100) {
+                    collapse = true; who = b.playerCreator;
+                    Composite.remove(this.engine.world, b); this.blocks.splice(i, 1); i--;
+                }
+            }
+            const live = this.blocks.filter(b => !b.isStatic);
+            if (live.length >= 3 && live.filter(b => Math.abs(b.angle) > 0.48).length >= 3) { collapse = true; who = this.player(); }
+            if (collapse) { playSound('collapse'); endLane(this, who); }
+        };
+
+        Lane.prototype.queueSpell = function (type) {
+            const cost = type === 'anvil' ? 2 : 1;
+            const p = this.player();
+            if ((p.spellEnergy || 0) < cost) { this.toast('NO ENERGY', '#ef4444'); playSound('wobble'); return; }
+            playSound('spell');
+            p.spellEnergy -= cost;
+            this.sabotage = type;
+            this.toast(this.player().name + ' cast ' + type.toUpperCase(), '#ec4899');
+            updateControllerUI();
+        };
+
+        // sabotage: drop a small junk house onto this lane's tower
+        Lane.prototype.dropJunk = function () {
+            const s = shrinkScale(this.successfulDrops) * 0.5;
+            const w = DEFAULT_BOX_WIDTH * s, h = DEFAULT_BOX_HEIGHT * s;
+            const x = CANVAS_WIDTH / 2 + (Math.sin(this.swingTime * 7) * 60);
+            const j = Bodies.rectangle(x, this.pivotY + 60, w, h, { friction: 0.9, frictionStatic: 1.0, frictionAir: 0.02, restitution: 0 });
+            j.boxWidth = w; j.boxHeight = h; j.isJunk = true;
+            Body.setVelocity(j, { x: 0, y: 5 });
+            Composite.add(this.engine.world, j);
+            this.junk.push(j);
+            this.flash = 1;
+            this.toast('INCOMING SABOTAGE', '#ef4444');
+            playSound('wobble');
+        };
+
+        Lane.prototype.spikeWind = function () {
+            this.targetWind = (Math.random() < 0.5 ? -1 : 1) * 2.8;
+            this.flash = 1;
+            this.toast('ENEMY GALE', '#0891b2');
+            playSound('wobble');
+        };
+
+        Lane.prototype.toast = function (text, color) { this._toast = { text: text, color: color || '#3b82f6', t: 90 }; };
+
+        Lane.prototype.spawnParticles = function (x, y, count) {
+            for (let i = 0; i < count; i++) this.particles.push({
+                x: x + (Math.random() - 0.5) * 60, y: y + (Math.random() - 0.5) * 15,
+                vx: (Math.random() - 0.5) * 5, vy: -Math.random() * 4 - 1.5,
+                size: Math.random() * 22 + 10,
+                color: `rgba(${250 + Math.random() * 5}, ${220 + Math.random() * 20}, ${150 + Math.random() * 50}, 0.55)`,
+                life: 1.0, decay: Math.random() * 0.03 + 0.015
+            });
+        };
+
+        Lane.prototype.updatePhysics = function () {
+            Engine.update(this.engine, 1000 / 60);
+            this.checkSettle();
+            this.checkCollapse();
+            this.swingTime += 0.013;
+            this.currentWind += (this.targetWind - this.currentWind) * 0.03;
+
+            // junk that fell away can be forgotten
+            this.junk = this.junk.filter(j => j.position.y < PLATFORM_Y + 400);
+
+            let top = PLATFORM_Y;
+            this.blocks.forEach(b => { if (b === this.pending) return; const t = b.position.y - (b.boxHeight || DEFAULT_BOX_HEIGHT) / 2; if (t < top) top = t; });
+            this.targetPivotY = Math.min(50, top - HANG_OFFSET);
+            this.targetCameraYOffset = Math.max(0, 470 - top);
+            this.pivotY += (this.targetPivotY - this.pivotY) * 0.08;
+            this.cameraYOffset += (this.targetCameraYOffset - this.cameraYOffset) * 0.08;
+            if (this.flash > 0) this.flash -= 0.04;
+            if (this._toast) { this._toast.t--; if (this._toast.t <= 0) this._toast = null; }
+        };
+    </script>
+
+    <script>
+        // ---------------------------------------------------------------------------
+        // Lane rendering
+        // ---------------------------------------------------------------------------
+        Lane.prototype.resize = function () {
+            const dpr = window.devicePixelRatio || 1;
+            const w = Math.max(1, Math.floor(this.canvas.clientWidth * dpr));
+            const h = Math.max(1, Math.floor(this.canvas.clientHeight * dpr));
+            if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; }
+        };
+
+        Lane.prototype.render = function () {
+            this.resize();
+            const ctx = this.ctx, W = this.canvas.width, H = this.canvas.height;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, W, H);
+            const bg = ctx.createLinearGradient(0, 0, 0, H);
+            bg.addColorStop(0, '#0284c7'); bg.addColorStop(0.5, '#bae6fd'); bg.addColorStop(1, '#bae6fd');
+            ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+            const scale = H / CANVAS_HEIGHT;
+            const offX = (W - CANVAS_WIDTH * scale) / 2;
+            ctx.setTransform(scale, 0, 0, scale, offX, 0);
+
+            ctx.save();
+            ctx.translate(0, this.cameraYOffset);
+            this.drawBackground();
+            this.drawPlatform();
+            this.drawBlocks();
+            this.drawJunk();
+            this.drawCrane();
+            this.drawParticles();
+            ctx.restore();
+            this.drawFlagHUD();
+
+            // sabotage flash tint
+            if (this.flash > 0) { ctx.fillStyle = `rgba(239,68,68,${0.18 * this.flash})`; ctx.fillRect(0, -this.cameraYOffset, CANVAS_WIDTH, CANVAS_HEIGHT); }
+
+            // screen-space lane header + toast
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            this.drawHeader(W, scale, offX);
+            this.drawToast(W, H);
+        };
+
+        Lane.prototype.drawBackground = function () {
+            const ctx = this.ctx;
+            const sky = ctx.createLinearGradient(0, -1500, 0, CANVAS_HEIGHT);
+            sky.addColorStop(0, '#0284c7'); sky.addColorStop(0.4, '#bae6fd'); sky.addColorStop(1, '#bae6fd');
+            ctx.fillStyle = sky; ctx.fillRect(-4000, -3000, CANVAS_WIDTH + 8000, CANVAS_HEIGHT + 3500);
+            ctx.fillStyle = 'rgba(255,253,224,0.95)';
+            ctx.beginPath(); ctx.arc(CANVAS_WIDTH - 100, 220 - this.cameraYOffset * 0.25, 45, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(255,253,224,0.2)';
+            ctx.beginPath(); ctx.arc(CANVAS_WIDTH - 100, 220 - this.cameraYOffset * 0.25, 75, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.beginPath();
+            ctx.arc(120, 260 - this.cameraYOffset * 0.35, 40, 0, Math.PI * 2);
+            ctx.arc(160, 250 - this.cameraYOffset * 0.35, 50, 0, Math.PI * 2);
+            ctx.arc(200, 260 - this.cameraYOffset * 0.35, 40, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#6ee7b7'; ctx.beginPath(); ctx.arc(100, PLATFORM_Y + 160, 250, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#34d399'; ctx.beginPath(); ctx.arc(CANVAS_WIDTH - 120, PLATFORM_Y + 180, 230, 0, Math.PI * 2); ctx.fill();
+        };
+
+        Lane.prototype.drawPlatform = function () {
+            const ctx = this.ctx, pos = this.ground.position;
+            ctx.fillStyle = '#d97706';
+            ctx.beginPath(); ctx.roundRect(pos.x - (CANVAS_WIDTH - 120) / 2 - 5, pos.y - 15, CANVAS_WIDTH - 110, 30, 8); ctx.fill();
+            ctx.strokeStyle = '#78350f'; ctx.lineWidth = 4; ctx.stroke();
+            ctx.fillStyle = '#fbbf24'; ctx.fillRect(pos.x - (CANVAS_WIDTH - 120) / 2 + 10, pos.y - 11, CANVAS_WIDTH - 140, 8);
+        };
+
+        Lane.prototype.drawHouse = function (x, y, angle, w, h, opts) {
+            const ctx = this.ctx;
+            ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+            ctx.strokeStyle = '#78350f'; ctx.lineWidth = 5;
+            const moldingH = 9 * (h / DEFAULT_BOX_HEIGHT);
+            ctx.fillStyle = '#d97706';
+            ctx.beginPath(); ctx.roundRect(-w / 2 - 4, -h / 2, w + 8, moldingH, 3); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.roundRect(-w / 2 - 4, h / 2 - moldingH, w + 8, moldingH, 3); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#fef3c7';
+            ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2 + moldingH, w, h - moldingH * 2, 0); ctx.fill(); ctx.stroke();
+            const bandH = 12 * (h / DEFAULT_BOX_HEIGHT);
+            ctx.fillStyle = '#3b82f6'; ctx.fillRect(-w / 2, -bandH / 2, w, bandH); ctx.strokeRect(-w / 2, -bandH / 2, w, bandH);
+            if (opts && opts.ice) { ctx.fillStyle = 'rgba(186,230,253,0.45)'; ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 12); ctx.fill(); }
+            if (opts && opts.face) this.drawFace(x, y, w, h, opts.face, opts.color);
+            ctx.restore();
+        };
+
+        Lane.prototype.drawFace = function (cx, cy, w, h, emotion, color) {
+            const ctx = this.ctx; const sx = -w * 0.18, sy = -h * 0.12;
+            ctx.fillStyle = color || '#3b82f6';
+            ctx.beginPath(); ctx.arc(sx, sy + 4, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(sx - 2, sy + 2, 2.5, 0, Math.PI * 2); ctx.arc(sx + 2, sy + 2, 2.5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#000'; ctx.beginPath();
+            if (emotion === 'panicked') { ctx.arc(sx - 2, sy + 2, 0.8, 0, Math.PI * 2); ctx.arc(sx + 2, sy + 2, 0.8, 0, Math.PI * 2); }
+            else { ctx.arc(sx - 2, sy + 1.2, 1.2, 0, Math.PI * 2); ctx.arc(sx + 2, sy + 1.2, 1.2, 0, Math.PI * 2); }
+            ctx.fill();
+        };
+
+        Lane.prototype.drawBlocks = function () {
+            const ctx = this.ctx; let topBlock = null, topY = PLATFORM_Y;
+            this.blocks.forEach(b => {
+                const w = b.boxWidth || DEFAULT_BOX_WIDTH, h = b.boxHeight || DEFAULT_BOX_HEIGHT;
+                if (b.position.y < topY) { topY = b.position.y; topBlock = b; }
+                this.drawHouse(b.position.x, b.position.y, b.angle, w, h, {
+                    ice: b.sabotageActive === 'ice',
+                    face: (Math.abs(b.angularSpeed) > 0.05 ? 'panicked' : (b.eyeState || 'neutral')),
+                    color: b.playerCreator ? b.playerCreator.color : '#3b82f6'
+                });
+                if (b.starSparkles) this.drawSparkles(b.position.x, b.position.y);
+            });
+            if (topBlock) this.drawBalancers(topBlock);
+        };
+
+        Lane.prototype.drawJunk = function () {
+            const ctx = this.ctx;
+            this.junk.forEach(j => {
+                ctx.save(); ctx.translate(j.position.x, j.position.y); ctx.rotate(j.angle);
+                ctx.fillStyle = '#475569'; ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.roundRect(-j.boxWidth / 2, -j.boxHeight / 2, j.boxWidth, j.boxHeight, 6); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#ef4444'; ctx.fillRect(-j.boxWidth / 2, -3, j.boxWidth, 6);
+                ctx.restore();
+            });
+        };
+
+        Lane.prototype.drawBalancers = function (top) {
+            const ctx = this.ctx, h = top.boxHeight || DEFAULT_BOX_HEIGHT;
+            ctx.save(); ctx.translate(top.position.x, top.position.y - h / 2); ctx.rotate(top.angle);
+            [{ o: -22, c: this.accent, i: 0 }, { o: 22, c: '#ec4899', i: 1 }].forEach(bab => {
+                ctx.save(); ctx.translate(bab.o, -12);
+                const shake = Math.sin(this.swingTime * 4 + bab.i) * 3;
+                ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5;
+                ctx.beginPath(); ctx.moveTo(-4, 14); ctx.lineTo(-6 + shake, 4); ctx.moveTo(4, 14); ctx.lineTo(6 - shake, 4); ctx.stroke();
+                ctx.fillStyle = bab.c; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-4, -4, 4, 0, Math.PI * 2); ctx.arc(4, -4, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(-4, -6, 2, 0, Math.PI * 2); ctx.arc(4, -6, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            });
+            ctx.restore();
+        };
+
+        Lane.prototype.drawSparkles = function (cx, cy) {
+            const ctx = this.ctx; ctx.save(); ctx.fillStyle = '#facc15';
+            for (let i = 0; i < 6; i++) {
+                const a = i * Math.PI / 3 + this.swingTime; const d = 65 + Math.sin(this.swingTime * 3) * 8;
+                ctx.beginPath(); ctx.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 3.5, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        };
+
+        Lane.prototype.drawCrane = function () {
+            const ctx = this.ctx;
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 14;
+            ctx.beginPath(); ctx.moveTo(30, this.pivotY - 20); ctx.lineTo(CANVAS_WIDTH - 30, this.pivotY - 20); ctx.stroke();
+            ctx.fillStyle = '#b45309'; ctx.beginPath(); ctx.roundRect(pivotX - 25, this.pivotY - 28, 50, 16, 4); ctx.fill();
+
+            const swingSpeed = 1.35 + this.successfulDrops * 0.04, thetaMax = 0.52;
+            const windAngle = this.currentWind * 0.08;
+            const swingAngle = thetaMax * Math.sin(this.swingTime * swingSpeed) + windAngle;
+            const bx = pivotX + ropeLength * Math.sin(swingAngle);
+            const by = this.pivotY + ropeLength * Math.cos(swingAngle);
+
+            if (this.isHanging && this.hanging) {
+                const hangAngle = -swingAngle;
+                const bh = this.hanging.boxHeight || DEFAULT_BOX_HEIGHT;
+                Body.setPosition(this.hanging, { x: bx, y: by });
+                Body.setAngle(this.hanging, hangAngle);
+                Body.setVelocity(this.hanging, { x: 0, y: 0 });
+                Body.setAngularVelocity(this.hanging, 0);
+                const ex = pivotX + (ropeLength - bh / 2) * Math.sin(swingAngle);
+                const ey = this.pivotY + (ropeLength - bh / 2) * Math.cos(swingAngle);
+                ctx.strokeStyle = '#78350f'; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.moveTo(pivotX, this.pivotY - 20); ctx.lineTo(ex, ey); ctx.stroke();
+                this.drawHouse(this.hanging.position.x, this.hanging.position.y, this.hanging.angle,
+                    this.hanging.boxWidth, this.hanging.boxHeight, {
+                        ice: this.sabotage === 'ice',
+                        face: this.hanging.eyeState || 'neutral',
+                        color: this.player().color
+                    });
+            }
+        };
+
+        Lane.prototype.drawFlagHUD = function () {
+            if (this.blocks.length === 0) return;
+            const ctx = this.ctx; let topY = PLATFORM_Y;
+            this.blocks.forEach(b => { if (b.position.y < topY) topY = b.position.y; });
+            const y = topY + this.cameraYOffset;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(100,116,139,0.55)'; ctx.lineWidth = 2.5; ctx.setLineDash([8, 6]);
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke();
+            ctx.restore();
+            ctx.save(); ctx.translate(20, y - 14);
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 25); ctx.lineTo(0, -10); ctx.stroke();
+            ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(30, -2); ctx.lineTo(0, 6); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#334155'; ctx.font = 'bold 12px Fredoka';
+            ctx.fillText((this.successfulDrops * 10).toFixed(0) + ' m', 36, 12);
+            ctx.restore();
+        };
+
+        Lane.prototype.drawParticles = function () {
+            const ctx = this.ctx;
+            for (let i = this.particles.length - 1; i >= 0; i--) {
+                const p = this.particles[i]; p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+                if (p.life <= 0) { this.particles.splice(i, 1); continue; }
+                ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.4 + p.life * 0.6), 0, Math.PI * 2); ctx.fill();
+            }
+        };
+
+        Lane.prototype.drawHeader = function (W, scale, offX) {
+            // Only used in battle mode (solo uses the DOM HUD). Draw name/height/wind/combo.
+            if (gameMode !== 'battle') return;
+            const ctx = this.ctx; const pad = 10 * scale;
+            ctx.font = `bold ${Math.round(20 * scale)}px Fredoka`;
+            ctx.textAlign = 'left'; ctx.fillStyle = this.accent;
+            ctx.fillText(this.player().name, pad, 28 * scale);
+            ctx.fillStyle = '#1e293b'; ctx.font = `bold ${Math.round(15 * scale)}px Fredoka`;
+            ctx.fillText((this.successfulDrops * 10).toFixed(0) + ' m  -  ' + this.windLabel(), pad, 48 * scale);
+            // combo pips
+            for (let i = 0; i < 3; i++) {
+                ctx.fillStyle = i < this.combo ? '#10b981' : 'rgba(255,255,255,0.6)';
+                ctx.beginPath(); ctx.arc(pad + 8 * scale + i * 16 * scale, 64 * scale, 5 * scale, 0, Math.PI * 2); ctx.fill();
+            }
+            if (!this.alive) {
+                ctx.fillStyle = 'rgba(15,23,42,0.55)'; ctx.fillRect(0, 0, W, this.canvas.height);
+                ctx.fillStyle = '#fca5a5'; ctx.textAlign = 'center'; ctx.font = `900 ${Math.round(34 * scale)}px Fredoka`;
+                ctx.fillText('FELL', W / 2, this.canvas.height / 2); ctx.textAlign = 'left';
+            }
+        };
+
+        Lane.prototype.windLabel = function () {
+            if (Math.abs(this.currentWind) < 0.3) return 'Calm';
+            return (Math.abs(this.currentWind * 9)).toFixed(1) + ' ' + (this.currentWind > 0 ? 'Right' : 'Left');
+        };
+
+        Lane.prototype.drawToast = function (W, H) {
+            if (!this._toast) return;
+            const ctx = this.ctx; const a = Math.min(1, this._toast.t / 30);
+            ctx.globalAlpha = a; ctx.textAlign = 'center';
+            ctx.font = `900 ${Math.round(W * 0.06)}px Fredoka`;
+            ctx.fillStyle = this._toast.color; ctx.fillText(this._toast.text, W / 2, H * 0.34);
+            ctx.globalAlpha = 1; ctx.textAlign = 'left';
+        };
+    </script>
+
+    <script>
+        // ---------------------------------------------------------------------------
+        // Match flow, controls, combo cross-effects, loop
+        // ---------------------------------------------------------------------------
+        let canvas0, canvas1;
+
+        window.onload = function () {
+            canvas0 = document.getElementById('lane-canvas-0');
+            canvas1 = document.getElementById('lane-canvas-1');
+            buildLanes(); // idle background
+            updateLobbyUI();
+            requestAnimationFrame(gameLoop);
+
+            canvas0.addEventListener('pointerdown', function (e) { e.preventDefault(); if (lanes[0]) lanes[0].drop(); });
+            canvas1.addEventListener('pointerdown', function (e) { e.preventDefault(); if (lanes[1]) lanes[1].drop(); });
+            document.getElementById('p1-drop').addEventListener('pointerdown', function (e) { e.preventDefault(); if (lanes[0]) lanes[0].drop(); });
+            document.getElementById('p2-drop').addEventListener('pointerdown', function (e) { e.preventDefault(); if (lanes[1]) lanes[1].drop(); });
+
+            window.addEventListener('keydown', function (e) {
+                if (e.code === 'Space') { e.preventDefault(); if (lanes[0]) lanes[0].drop(); }
+                else if (e.code === 'Enter') { e.preventDefault(); if (lanes[1]) lanes[1].drop(); }
+            });
+            window.addEventListener('resize', function () { lanes.forEach(l => l.resize()); });
+        };
+
+        function buildLanes() {
+            lanes.forEach(l => { /* let GC reclaim engines */ });
+            if (gameMode === 'battle') {
+                document.getElementById('lane-wrap-1').classList.remove('hidden');
+                lanes = [ new Lane(canvas0, [players[0]], players[0].color), new Lane(canvas1, [players[1] || players[0]], (players[1] || players[0]).color) ];
+            } else {
+                document.getElementById('lane-wrap-1').classList.add('hidden');
+                lanes = [ new Lane(canvas0, players.slice(), players[0].color) ];
+            }
+            lanes.forEach(l => l.players.forEach(p => { if (p.spellEnergy === undefined) p.spellEnergy = 2; }));
+        }
+
+        function startGame() {
+            if (gameMode === 'battle' && players.length !== 2) { updateLobbyUI(); return; }
+            playSound('perfect');
+            buildLanes();
+            matchActive = true;
+            lanes.forEach(l => { l.players.forEach(p => p.spellEnergy = 2); l.spawnHanging(); });
+
+            // visibility
+            const battle = gameMode === 'battle';
+            document.getElementById('battle-controls').classList.toggle('hidden', !battle);
+            document.getElementById('battle-controls').classList.toggle('flex', battle);
+            document.getElementById('solo-controls').classList.toggle('hidden', battle);
+            document.getElementById('turn-hud').classList.toggle('hidden', battle);
+            document.getElementById('solo-stats').classList.toggle('hidden', battle);
+            if (battle) {
+                document.getElementById('p1-name').innerText = players[0].name;
+                document.getElementById('p2-name').innerText = players[1].name;
+            }
+            document.getElementById('lobby-modal').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('gameover-modal').classList.add('hidden');
+            document.getElementById('gameover-modal').classList.remove('flex');
+
+            updateControllerUI();
+            lanes.forEach(l => { if (l.player().isAI) l.runAI(); });
+
+            if (windTimer) clearInterval(windTimer);
+            windTimer = setInterval(function () {
+                if (!matchActive) return;
+                lanes.forEach(l => { l.targetWind = Math.random() > 0.6 ? (Math.random() - 0.5) * 3 : 0; });
+            }, 5000);
+        }
+
+        // combo: a 3-perfect streak sabotages the OTHER lane (battle only)
+        function triggerComboEffect(lane) {
+            const enemy = lanes.find(l => l !== lane && l.alive);
+            if (!enemy) return;
+            if (Math.random() < 0.5) enemy.spikeWind(); else enemy.dropJunk();
+        }
+
+        // Battle: if one tower leads the other by LEAD_HOUSES (5 = 50 m), the trailing player loses.
+        const LEAD_HOUSES = 5;
+        function checkBattleLead() {
+            if (gameMode !== 'battle' || lanes.length < 2 || !matchActive) return;
+            const a = lanes[0], b = lanes[1];
+            if (!a.alive || !b.alive) return;
+            if (a.successfulDrops - b.successfulDrops >= LEAD_HOUSES) {
+                b.alive = false; b.toast('OUT-CLIMBED', '#f43f5e');
+                endGame(a.player(), b.player(), true);
+            } else if (b.successfulDrops - a.successfulDrops >= LEAD_HOUSES) {
+                a.alive = false; a.toast('OUT-CLIMBED', '#f43f5e');
+                endGame(b.player(), a.player(), true);
+            }
+        }
+
+        function endLane(lane, loser) {
+            lane.alive = false;
+            if (gameMode === 'battle') {
+                const survivors = lanes.filter(l => l.alive);
+                if (survivors.length <= 1) {
+                    const winner = survivors[0] || null;
+                    endGame(winner ? winner.player() : null, loser, true);
+                }
+            } else {
+                endGame(null, loser, false);
+            }
+        }
+
+        function endGame(winner, loser, battle) {
+            matchActive = false;
+            if (windTimer) { clearInterval(windTimer); windTimer = null; }
+            document.getElementById('gameover-modal').classList.remove('hidden');
+            document.getElementById('gameover-modal').classList.add('flex');
+            const title = document.getElementById('gameover-title');
+            const summary = document.getElementById('gameover-summary');
+            const stats = document.getElementById('gameover-stats');
+
+            if (battle) {
+                title.innerText = winner ? (winner.name + ' WINS') : 'DRAW';
+                const w = lanes[0], x = lanes[1];
+                summary.innerText = (loser ? loser.name + "'s tower fell. " : '') + 'Best stack wins the battle.';
+                stats.innerHTML =
+                    `<div><span class="text-[10px] text-slate-400 uppercase tracking-widest font-bold block">${w.player().name}</span><span class="text-2xl font-black text-indigo-400 bubbly-font">${(w.successfulDrops*10).toFixed(0)} m</span></div>` +
+                    `<div><span class="text-[10px] text-slate-400 uppercase tracking-widest font-bold block">${x.player().name}</span><span class="text-2xl font-black text-rose-400 bubbly-font">${(x.successfulDrops*10).toFixed(0)} m</span></div>`;
+            } else {
+                title.innerText = 'TOWER COLLAPSED';
+                const drops = lanes[0].successfulDrops;
+                summary.innerText = (loser ? loser.name : 'A builder') + ' missed the stack at ' + (drops * 10).toFixed(0) + ' m.';
+                stats.innerHTML =
+                    `<div><span class="text-[10px] text-slate-400 uppercase tracking-widest font-bold block">Final Altitude</span><span class="text-2xl font-black text-indigo-400 bubbly-font">${(drops*10).toFixed(0)} m</span></div>` +
+                    `<div><span class="text-[10px] text-slate-400 uppercase tracking-widest font-bold block">Houses Stacked</span><span class="text-2xl font-black text-teal-400 bubbly-font">${drops}</span></div>`;
+            }
+        }
+
+        function resetToLobby() {
+            playSound('click');
+            matchActive = false;
+            if (windTimer) { clearInterval(windTimer); windTimer = null; }
+            document.getElementById('lobby-modal').classList.remove('opacity-0', 'pointer-events-none');
+            document.getElementById('gameover-modal').classList.add('hidden');
+            document.getElementById('gameover-modal').classList.remove('flex');
+            buildLanes();
+            updateLobbyUI();
+        }
+
+        // Solo spell button hook
+        function queueSpell(type) { initAudio(); if (lanes[0]) lanes[0].queueSpell(type); }
+
+        function updateControllerUI() {
+            if (gameMode === 'battle') return;
+            const lane = lanes[0]; if (!lane) return;
+            const p = lane.player();
+            document.getElementById('ctrl-player-name').innerText = p.name;
+            document.getElementById('ctrl-player-name').style.color = p.color;
+            document.getElementById('ctrl-player-color').style.backgroundColor = p.color;
+            const hint = document.getElementById('drop-hint');
+            if (p.isAI) { document.getElementById('ctrl-turn-prompt').innerText = 'AI thinking...'; if (hint) hint.style.opacity = '0.25'; }
+            else { document.getElementById('ctrl-turn-prompt').innerText = 'Tap anywhere to drop!'; if (hint) hint.style.opacity = '1'; }
+            document.getElementById('spell-energy-val').innerText = p.spellEnergy || 0;
+            [['spell-wind', 1], ['spell-ice', 1], ['spell-anvil', 2]].forEach(([id, cost]) => {
+                const el = document.getElementById(id);
+                el.disabled = (p.spellEnergy || 0) < cost;
+                el.style.opacity = (p.spellEnergy || 0) < cost ? '0.4' : '1';
+            });
+        }
+
+        function gameLoop() {
+            lanes.forEach(l => { if (matchActive && l.alive) l.updatePhysics(); l.render(); });
+            // solo DOM HUD
+            if (gameMode !== 'battle' && lanes[0]) {
+                const l = lanes[0];
+                const mh = document.getElementById('max-height-val'); if (mh) mh.innerText = (l.successfulDrops * 10).toFixed(2) + ' m';
+                const wv = document.getElementById('wind-speed-val'); if (wv) wv.innerText = l.windLabel();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+
+    <script>
+        // ---------------------------------------------------------------------------
+        // Serverless WebRTC controllers. Host shows an offer QR; the phone scans it,
+        // replies with its own answer QR; the host scans that back. Then a peer-to-peer
+        // data channel carries drop/spell inputs over WiFi with no server at all.
+        // ---------------------------------------------------------------------------
+        const peers = {};          // slot -> { pc, dc, connected }
+        let pairScan = null;       // active camera scan loop control
+
+        // Remote inputs map to a lane just like local taps.
+        function remoteDrop(slot) { const li = gameMode === 'battle' ? (slot - 1) : 0; if (lanes[li]) lanes[li].drop(); }
+        function remoteSpell(slot, spell) { const li = gameMode === 'battle' ? (slot - 1) : 0; if (lanes[li] && gameMode !== 'battle') lanes[li].queueSpell(spell); }
+
+        function slotCount() { return gameMode === 'battle' ? 2 : players.length; }
+
+        function buildPairList() {
+            const list = document.getElementById('pair-list');
+            if (!list) return;
+            list.innerHTML = '';
+            for (let s = 1; s <= slotCount(); s++) {
+                const connected = peers[s] && peers[s].connected;
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between gap-2 p-2 rounded-xl bg-white border border-slate-200';
+                row.innerHTML = `<span class="text-sm font-bold text-slate-700">Player ${s}</span>
+                    <span class="flex items-center gap-2">
+                        <span class="text-[11px] font-bold ${connected ? 'text-emerald-600' : 'text-slate-400'}">${connected ? 'connected' : 'not paired'}</span>
+                        <button onclick="hostPair(${s})" class="text-[11px] font-bold px-2 py-1 rounded ${connected ? 'bg-slate-100 text-slate-500' : 'bg-indigo-600 text-white'}">${connected ? 're-pair' : 'pair phone'}</button>
+                    </span>`;
+                list.appendChild(row);
+            }
+        }
+        function markSlotConnected(slot, ok) { if (peers[slot]) peers[slot].connected = ok; buildPairList(); }
+
+        // ---- SDP helpers (compact + local-only candidates so the QR stays small) ----
+        function packSDP(desc) { return JSON.stringify({ t: desc.type[0], s: desc.sdp }); }
+        function unpackSDP(str) { const j = JSON.parse(str); return { type: j.t === 'o' ? 'offer' : 'answer', sdp: j.s }; }
+        function waitIce(pc) {
+            return new Promise(res => {
+                if (pc.iceGatheringState === 'complete') return res();
+                const done = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', done); res(); } };
+                pc.addEventListener('icegatheringstatechange', done);
+                setTimeout(res, 2500); // proceed with whatever candidates we have
+            });
+        }
+
+        // ---- Camera QR scanning (jsQR) ----
+        async function scanQR(videoEl, onResult) {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            videoEl.srcObject = stream; await videoEl.play();
+            const c = document.createElement('canvas'); const cx = c.getContext('2d');
+            const ctrl = { stop() { cancelAnimationFrame(ctrl.raf); stream.getTracks().forEach(t => t.stop()); } };
+            function tick() {
+                if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+                    c.width = videoEl.videoWidth; c.height = videoEl.videoHeight;
+                    cx.drawImage(videoEl, 0, 0, c.width, c.height);
+                    const img = cx.getImageData(0, 0, c.width, c.height);
+                    const code = (typeof jsQR !== 'undefined') ? jsQR(img.data, img.width, img.height) : null;
+                    if (code && code.data) { ctrl.stop(); onResult(code.data); return; }
+                }
+                ctrl.raf = requestAnimationFrame(tick);
+            }
+            ctrl.raf = requestAnimationFrame(tick);
+            return ctrl;
+        }
+
+        function makeQR(el, text) { el.innerHTML = ''; new QRCode(el, { text: text, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.L }); }
+
+        // ---- HOST side ----
+        async function hostPair(slot) {
+            const pc = new RTCPeerConnection({ iceServers: [] });
+            const dc = pc.createDataChannel('ctrl');
+            peers[slot] = { pc, dc, connected: false };
+            dc.onopen = () => { markSlotConnected(slot, true); closePairModal(); };
+            dc.onclose = () => markSlotConnected(slot, false);
+            dc.onmessage = (e) => {
+                let m; try { m = JSON.parse(e.data); } catch (_) { return; }
+                if (m.a === 'drop') remoteDrop(slot);
+                else if (m.a === 'spell') remoteSpell(slot, m.s);
+                else if (m.a === 'name' && players[slot - 1]) { players[slot - 1].name = m.n || players[slot - 1].name; updateLobbyUI(); if (gameMode === 'battle') { const el = document.getElementById('p' + slot + '-name'); if (el) el.innerText = players[slot - 1].name; } }
+            };
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            await waitIce(pc);
+            document.getElementById('pair-title').innerText = 'Pair Player ' + slot;
+            document.getElementById('pair-step1').classList.remove('hidden');
+            document.getElementById('pair-step2').classList.add('hidden');
+            document.getElementById('pair-status').innerText = '';
+            makeQR(document.getElementById('pair-qr'), packSDP(pc.localDescription));
+            const modal = document.getElementById('pair-modal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            window._pairSlot = slot;
+        }
+
+        async function pairStartScan() {
+            document.getElementById('pair-step1').classList.add('hidden');
+            document.getElementById('pair-step2').classList.remove('hidden');
+            document.getElementById('pair-status').innerText = 'scanning...';
+            try {
+                pairScan = await scanQR(document.getElementById('pair-video'), async (data) => {
+                    try {
+                        const slot = window._pairSlot;
+                        await peers[slot].pc.setRemoteDescription(unpackSDP(data));
+                        document.getElementById('pair-status').innerText = 'reply received, connecting...';
+                    } catch (e) { document.getElementById('pair-status').innerText = 'invalid code, try again'; }
+                });
+            } catch (e) { document.getElementById('pair-status').innerText = 'camera blocked: ' + e.message; }
+        }
+
+        function closePairModal() {
+            if (pairScan) { pairScan.stop(); pairScan = null; }
+            const modal = document.getElementById('pair-modal');
+            modal.classList.add('hidden'); modal.classList.remove('flex');
+        }
+
+        // ---- PHONE / JOIN side ----
+        let joinPC = null, joinDC = null, joinScan = null;
+        function enterJoinMode() {
+            const ov = document.getElementById('join-overlay');
+            ov.classList.remove('hidden'); ov.classList.add('flex');
+            document.getElementById('join-step1').classList.remove('hidden');
+            document.getElementById('join-step2').classList.add('hidden');
+            document.getElementById('join-status').innerText = '';
+        }
+
+        async function joinStartScan() {
+            document.getElementById('join-status').innerText = 'point at the host code...';
+            try {
+                joinScan = await scanQR(document.getElementById('join-video'), async (data) => {
+                    try { await joinFromOffer(data); } catch (e) { document.getElementById('join-status').innerText = 'invalid code, try again'; }
+                });
+            } catch (e) { document.getElementById('join-status').innerText = 'camera blocked: ' + e.message; }
+        }
+
+        async function joinFromOffer(text) {
+            const pc = new RTCPeerConnection({ iceServers: [] });
+            joinPC = pc;
+            pc.ondatachannel = (e) => { joinDC = e.channel; wireJoinChannel(); };
+            await pc.setRemoteDescription(unpackSDP(text));
+            const ans = await pc.createAnswer();
+            await pc.setLocalDescription(ans);
+            await waitIce(pc);
+            document.getElementById('join-step1').classList.add('hidden');
+            document.getElementById('join-step2').classList.remove('hidden');
+            document.getElementById('join-status').innerText = 'show this to the host';
+            makeQR(document.getElementById('join-qr'), packSDP(pc.localDescription));
+        }
+
+        function wireJoinChannel() {
+            joinDC.onopen = () => showControllerView();
+            joinDC.onclose = () => { const s = document.getElementById('cv-status'); if (s) { s.innerText = 'disconnected'; s.className = 'text-xs font-bold px-2 py-1 rounded bg-rose-500/20 text-rose-300'; } };
+        }
+        function cvSend(obj) { if (joinDC && joinDC.readyState === 'open') joinDC.send(JSON.stringify(obj)); }
+
+        function showControllerView() {
+            document.getElementById('join-overlay').classList.add('hidden');
+            const cv = document.getElementById('controller-view');
+            cv.classList.remove('hidden'); cv.classList.add('flex');
+            const drop = document.getElementById('cv-drop');
+            const fire = (e) => { e.preventDefault(); if (navigator.vibrate) navigator.vibrate(15); cvSend({ a: 'drop' }); };
+            drop.addEventListener('touchstart', fire, { passive: false });
+            drop.addEventListener('mousedown', fire);
+            document.querySelectorAll('.cv-spell').forEach(b => {
+                const f = (e) => { e.preventDefault(); cvSend({ a: 'spell', s: b.dataset.cspell }); };
+                b.addEventListener('touchstart', f, { passive: false }); b.addEventListener('mousedown', f);
+            });
+            window.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); cvSend({ a: 'drop' }); } });
+        }
+
+        // refresh the pairing list whenever the lobby updates
+        const _origUpdateLobby = updateLobbyUI;
+        updateLobbyUI = function () { _origUpdateLobby(); buildPairList(); };
+        buildPairList();
+    </script>
+</body>
+</html>
