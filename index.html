@@ -1021,18 +1021,42 @@
             ctx.restore();
         };
 
+        // A toothed gear/cog. Drawn centred at (cx,cy), rotated by `ang`.
+        Lane.prototype.drawGear = function (cx, cy, r, teeth, ang, fill, stroke, hub) {
+            const ctx = this.ctx;
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+            ctx.fillStyle = fill; ctx.strokeStyle = stroke; ctx.lineWidth = 2;
+            const n = teeth * 2, tooth = r * 0.24;
+            ctx.beginPath();
+            for (let i = 0; i <= n; i++) {
+                const a = (i / n) * Math.PI * 2;
+                const rad = (i % 2 === 0) ? r + tooth : r;
+                const px = Math.cos(a) * rad, py = Math.sin(a) * rad;
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = hub || '#b45309'; ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = stroke;
+            for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.3, Math.sin(a) * r * 0.3, r * 0.09, 0, Math.PI * 2); ctx.fill(); }
+            ctx.beginPath(); ctx.arc(0, 0, r * 0.16, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        };
+
         Lane.prototype.drawCrane = function () {
             const ctx = this.ctx;
+            // gantry beam
             ctx.strokeStyle = '#475569'; ctx.lineWidth = 14;
             ctx.beginPath(); ctx.moveTo(30, this.pivotY - 20); ctx.lineTo(CANVAS_WIDTH - 30, this.pivotY - 20); ctx.stroke();
-            ctx.fillStyle = '#b45309'; ctx.beginPath(); ctx.roundRect(pivotX - 25, this.pivotY - 28, 50, 16, 4); ctx.fill();
 
             const swingSpeed = 1.35 + this.successfulDrops * 0.04, thetaMax = 0.52;
             const windAngle = this.currentWind * 0.08;
             const swingAngle = thetaMax * Math.sin(this.swingTime * swingSpeed) + windAngle;
             const bx = pivotX + ropeLength * Math.sin(swingAngle);
             const by = this.pivotY + ropeLength * Math.cos(swingAngle);
+            const mainR = 14;
 
+            // rope from the pulley centre to the block (drawn before the gears so they appear to wrap it)
+            let ex, ey;
             if (this.isHanging && this.hanging) {
                 const hangAngle = -swingAngle;
                 const bh = this.hanging.boxHeight || DEFAULT_BOX_HEIGHT;
@@ -1040,12 +1064,20 @@
                 Body.setAngle(this.hanging, hangAngle);
                 Body.setVelocity(this.hanging, { x: 0, y: 0 });
                 Body.setAngularVelocity(this.hanging, 0);
-                const ex = pivotX + (ropeLength - bh / 2) * Math.sin(swingAngle);
-                const ey = this.pivotY + (ropeLength - bh / 2) * Math.cos(swingAngle);
+                ex = pivotX + (ropeLength - bh / 2) * Math.sin(swingAngle);
+                ey = this.pivotY + (ropeLength - bh / 2) * Math.cos(swingAngle);
                 ctx.strokeStyle = '#78350f'; ctx.lineWidth = 4;
-                ctx.beginPath(); ctx.moveTo(pivotX, this.pivotY - 20); ctx.lineTo(ex, ey); ctx.stroke();
-                this.drawHouse(this.hanging, 'idle', true);
+                ctx.beginPath(); ctx.moveTo(pivotX, this.pivotY); ctx.lineTo(ex, ey); ctx.stroke();
             }
+
+            // mounting bracket + the gear pulley that spins as the camera pans up the tower
+            ctx.fillStyle = '#334155'; ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.roundRect(pivotX - 7, this.pivotY - 24, 14, 16, 3); ctx.fill(); ctx.stroke();
+            const ga = this.cameraYOffset * 0.05;
+            this.drawGear(pivotX + 17, this.pivotY - 9, 8, 8, -ga * 1.75, '#94a3b8', '#475569', '#64748b'); // small gear (meshes, opposite)
+            this.drawGear(pivotX, this.pivotY, mainR, 10, ga, '#64748b', '#1e293b', '#b45309');             // main pulley
+
+            if (this.isHanging && this.hanging) this.drawHouse(this.hanging, 'idle', true);
         };
 
         Lane.prototype.drawFlagHUD = function () {
