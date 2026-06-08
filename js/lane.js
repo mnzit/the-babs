@@ -390,8 +390,12 @@
                 this.autoScrollOffset = 0;
             }
             
-            this.targetPivotY = Math.min(cam.maxPivotY, top - HANG_OFFSET);
             this.targetCameraYOffset = Math.max(this.autoScrollOffset, Math.max(0, cam.restAnchor - top));
+            
+            const naturalCamY = Math.max(0, cam.restAnchor - top);
+            const extraScroll = this.targetCameraYOffset - naturalCamY;
+            this.targetPivotY = Math.min(cam.maxPivotY, top - HANG_OFFSET) - extraScroll;
+            
             this.pivotY += (this.targetPivotY - this.pivotY) * cam.pivotLerp;
             this.cameraYOffset += (this.targetCameraYOffset - this.cameraYOffset) * cam.cameraLerp;
             if (this.flash > 0) this.flash -= cam.flashDecay;

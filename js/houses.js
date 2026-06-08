@@ -35,11 +35,11 @@ Babs.Houses.register({
   initBlock: function (b) { b.houseType = 0; },
   draw: function (c) {
     const { ctx, w, h, k, st, emotion, t, ph, color, walk, face, chars } = c;
-    const wW = Math.min(w * 0.36, 34), wH = 16 * k;
+    const wW = Math.min(w * 0.40, 38), wH = 28 * k;
     const wx = -wW / 2, wy = -h * 0.05 - wH / 2;
     ctx.fillStyle = '#cfeafe'; ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 5); ctx.fill();
     ctx.save(); ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 5); ctx.clip();
-    chars.drawHead(walk(1.1) * wW * 0.16, wy + wH * 0.68, k * 0.95, emotion, t, ph, color, face(1.1));
+    chars.drawHead(walk(1.1) * wW * 0.16, wy + wH * 0.85, k * 0.95, emotion, t, ph, color, face(1.1));
     ctx.restore();
     ctx.strokeStyle = st.trim; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 5); ctx.stroke();
     ctx.fillStyle = st.trim; ctx.beginPath(); ctx.roundRect(wx - 2, wy + wH - 3 * k, wW + 4, 3.5 * k, 1.5); ctx.fill(); ctx.stroke();
