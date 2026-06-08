@@ -200,7 +200,7 @@
                     </button>
                     <button onclick="setMode('battle')" id="btn-mode-battle" class="p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50 text-left hover:scale-105 transition-all opacity-70">
                         <div class="font-black text-sm text-slate-800">Battle</div>
-                        <div class="text-[10px] text-slate-500 leading-tight">Two players, two towers, side by side. Combos sabotage your rival.</div>
+                        <div class="text-[10px] text-slate-500 leading-tight">2-4 players, a tower each, side by side. Combos sabotage a rival.</div>
                     </button>
                     <button onclick="setMode('coop')" id="btn-mode-coop" class="p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50 text-left hover:scale-105 transition-all opacity-70">
                         <div class="font-black text-sm text-slate-800">Co-op</div>
@@ -1414,7 +1414,7 @@
             if (typeof updateControllerUI === 'function') updateControllerUI();
         }
 
-        function slotCount() { return gameMode === 'battle' ? 2 : players.length; }
+        function slotCount() { return Math.min(4, players.length); }   // one phone per player
 
         function buildPairList() {
             const list = document.getElementById('pair-list');
