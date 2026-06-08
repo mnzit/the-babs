@@ -448,6 +448,7 @@
             b.eyeState = 'neutral';
             b.styleIndex = Math.floor(Math.random() * HOUSE_STYLES.length); // each house looks different
             b.guyPhase = Math.random() * Math.PI * 2;                       // varied character animation
+            b.houseType = Math.floor(Math.random() * 3);                    // 0 window-peek, 1 balcony, 2 rooftop
             this.hanging = b;
             this.isHanging = true;
         };
@@ -788,122 +789,172 @@
             ctx.fillStyle = '#fbbf24'; ctx.fillRect(pos.x - (CANVAS_WIDTH - 120) / 2 + 10, pos.y - 11, CANVAS_WIDTH - 140, 8);
         };
 
-        Lane.prototype.drawHouse = function (block, emotion) {
+        Lane.prototype.drawHouse = function (block, emotion, isTop) {
             const ctx = this.ctx;
             const x = block.position.x, y = block.position.y, angle = block.angle;
             const w = block.boxWidth || DEFAULT_BOX_WIDTH, h = block.boxHeight || DEFAULT_BOX_HEIGHT;
             const st = HOUSE_STYLES[(block.styleIndex || 0) % HOUSE_STYLES.length];
             const k = h / DEFAULT_BOX_HEIGHT;
+            const t = this.swingTime, ph = block.guyPhase || 0;
+            const color = block.playerCreator ? block.playerCreator.color : '#3b82f6';
+            const type = block.houseType || 0;
+            const dark = '#3f2a18';
             ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
-            ctx.strokeStyle = '#3f2a18'; ctx.lineWidth = 4.5;
+            ctx.strokeStyle = dark; ctx.lineWidth = 4.5;
             const moldingH = 9 * k;
-            // top & bottom trim (varies per house)
             ctx.fillStyle = st.trim;
             ctx.beginPath(); ctx.roundRect(-w / 2 - 4, -h / 2, w + 8, moldingH, 3); ctx.fill(); ctx.stroke();
             ctx.beginPath(); ctx.roundRect(-w / 2 - 4, h / 2 - moldingH, w + 8, moldingH, 3); ctx.fill(); ctx.stroke();
-            // wall (varies per house)
             ctx.fillStyle = st.wall;
             ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2 + moldingH, w, h - moldingH * 2, 0); ctx.fill(); ctx.stroke();
-            // window with the little resident inside
-            const wW = Math.min(w * 0.52, 58), wH = (h - moldingH * 2) * 0.8;
-            const wx = -wW / 2, wy = -wH / 2;
-            ctx.fillStyle = '#cfeafe';
-            ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 6); ctx.fill();
-            ctx.save(); ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 6); ctx.clip();
-            this.drawGuy(0, wH * 0.06, k, emotion, this.swingTime, block.guyPhase || 0, block.playerCreator ? block.playerCreator.color : '#3b82f6');
-            ctx.restore();
-            ctx.strokeStyle = st.trim; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 6); ctx.stroke();
+
+            const walk = (sp) => Math.sin(t * sp + ph);
+            const face = (sp) => (Math.cos(t * sp + ph) >= 0 ? 1 : -1);
+
+            if (type === 2) {
+                // ROOFTOP: walks on the roof; squished flat if a house sits on top
+                ctx.fillStyle = st.trim; ctx.strokeStyle = dark; ctx.lineWidth = 2.5;   // little chimney
+                ctx.beginPath(); ctx.roundRect(w * 0.3, -h / 2 - 8 * k, 5 * k, 8 * k, 1); ctx.fill(); ctx.stroke();
+                if (!isTop) {
+                    this.drawGuy(0, -h / 2 + 15 * k, k * 0.85, 'panic', t, ph, color, 1, 0.32);  // squished flat on the wall
+                } else {
+                    this.drawGuy(walk(0.9) * w * 0.3, -h / 2, k * 0.9, emotion, t, ph, color, face(0.9), 1);
+                }
+            } else if (type === 1) {
+                // BALCONY: walks on a ledge behind a railing
+                ctx.fillStyle = '#33414f'; ctx.strokeStyle = dark; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.roundRect(-w * 0.16, -h * 0.12, w * 0.32, h * 0.4, 4); ctx.fill(); ctx.stroke();
+                const ledgeY = h * 0.14;
+                this.drawGuy(walk(0.8) * w * 0.2, ledgeY, k * 0.9, emotion, t, ph, color, face(0.8), 1);
+                const lw2 = w * 0.78;
+                ctx.fillStyle = st.trim; ctx.strokeStyle = dark; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.roundRect(-lw2 / 2, ledgeY, lw2, 5 * k, 2); ctx.fill(); ctx.stroke();
+                ctx.strokeStyle = st.trim; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(-lw2 / 2, ledgeY); ctx.lineTo(-lw2 / 2, ledgeY - 11 * k);
+                ctx.moveTo(lw2 / 2, ledgeY); ctx.lineTo(lw2 / 2, ledgeY - 11 * k);
+                ctx.moveTo(-lw2 / 2, ledgeY - 11 * k); ctx.lineTo(lw2 / 2, ledgeY - 11 * k);
+                for (let rx = -lw2 / 2 + 8 * k; rx < lw2 / 2 - 3; rx += 8 * k) { ctx.moveTo(rx, ledgeY); ctx.lineTo(rx, ledgeY - 11 * k); }
+                ctx.stroke();
+            } else {
+                // WINDOW PEEK: small window, only his head shows
+                const wW = Math.min(w * 0.36, 34), wH = 16 * k;
+                const wx = -wW / 2, wy = -h * 0.05 - wH / 2;
+                ctx.fillStyle = '#cfeafe'; ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 5); ctx.fill();
+                ctx.save(); ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 5); ctx.clip();
+                this.drawHead(walk(1.1) * wW * 0.16, wy + wH * 0.68, k * 0.95, emotion, t, ph, color, face(1.1));
+                ctx.restore();
+                ctx.strokeStyle = st.trim; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 5); ctx.stroke();
+                ctx.fillStyle = st.trim; ctx.beginPath(); ctx.roundRect(wx - 2, wy + wH - 3 * k, wW + 4, 3.5 * k, 1.5); ctx.fill(); ctx.stroke();
+            }
+
             if (block.sabotageActive === 'ice') { ctx.fillStyle = 'rgba(186,230,253,0.45)'; ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 12); ctx.fill(); }
             ctx.restore();
         };
 
-        // A little hatted character (inspired by the runner you shared). He runs in place -- body
-        // bobs, arms and legs swing -- and PANICS (throws his arms up, wide eyes, open mouth,
-        // shaking) when the house is tilting or being demolished. Clothes take the player colour.
-        Lane.prototype.drawGuy = function (cx, cy, s, emotion, t, phase, color) {
+        // The hatted character (inspired by the runner you shared). Drawn standing on (cx,cy) as the
+        // FEET; he walks (legs/arms swing, body bobs) and panics (arms up, wide eyes, open mouth,
+        // shaking). `facing` flips him; `squish` flattens him (used when a house lands on his roof).
+        Lane.prototype.drawGuy = function (cx, cy, s, emotion, t, phase, color, facing, squish) {
             const ctx = this.ctx;
             const panic = emotion === 'panic';
-            const c = t * (panic ? 17 : 6) + phase;          // run cadence
-            const lift = Math.sin(c) * (panic ? 1.6 : 1.2) * s;
+            facing = facing || 1; squish = (squish == null) ? 1 : squish;
+            const c = t * (panic ? 17 : 9) + phase;
+            const legR = Math.sin(c) * 0.55;
+            const lift = (panic ? Math.sin(c) : Math.abs(Math.sin(c)) * 0.8) * 1.4 * s;
             const shake = panic ? Math.sin(t * 46 + phase) * 1.1 * s : 0;
-            const legR = Math.sin(c) * 0.5;
-            const bw = 12 * s, bh = 14 * s, dark = '#1f2937';
+            const bw = 11 * s, bh = 13 * s, legLen = 6.5 * s, dark = '#1f2937';
+            const hipY = -legLen, bodyCY = hipY - bh / 2;
             const rr = (x, yy, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, yy, w, h, r); };
             ctx.save();
             ctx.translate(cx + shake, cy - lift);
-
-            // legs (behind), swinging opposite each other
+            ctx.scale(facing, squish);
+            // legs
             const leg = (hx, rot) => {
-                ctx.save(); ctx.translate(hx, bh * 0.36); ctx.rotate(rot);
+                ctx.save(); ctx.translate(hx, hipY); ctx.rotate(rot);
                 ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 1 * s;
-                rr(-1.5 * s, 0, 3 * s, 7 * s, 1.4 * s); ctx.fill(); ctx.stroke();
-                ctx.fillStyle = '#3b6fb5'; rr(-1.5 * s, 0, 3 * s, 4 * s, 1.4 * s); ctx.fill();
+                rr(-1.4 * s, 0, 2.8 * s, legLen + 0.5 * s, 1.3 * s); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#3b6fb5'; rr(-1.4 * s, 0, 2.8 * s, legLen * 0.55, 1.3 * s); ctx.fill();
                 ctx.restore();
             };
             leg(-bw * 0.26, legR); leg(bw * 0.26, -legR);
-
-            // body (white)
+            // body group
+            ctx.save(); ctx.translate(0, bodyCY);
             ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * s;
             rr(-bw / 2, -bh / 2, bw, bh, 3.5 * s); ctx.fill(); ctx.stroke();
-
-            // shirt (player colour) + white collar + tie, clipped to the body
             ctx.save(); rr(-bw / 2, -bh / 2, bw, bh, 3.5 * s); ctx.clip();
             ctx.fillStyle = color; ctx.fillRect(-bw / 2, bh * 0.1, bw, bh);
-            ctx.fillStyle = '#fff'; ctx.beginPath();
-            ctx.moveTo(-bw * 0.2, bh * 0.1); ctx.lineTo(bw * 0.2, bh * 0.1); ctx.lineTo(0, bh * 0.36); ctx.closePath(); ctx.fill();
-            ctx.fillStyle = '#7f1d1d'; ctx.beginPath();
-            ctx.moveTo(-1.1 * s, bh * 0.16); ctx.lineTo(1.1 * s, bh * 0.16); ctx.lineTo(0, bh * 0.46); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(-bw * 0.2, bh * 0.1); ctx.lineTo(bw * 0.2, bh * 0.1); ctx.lineTo(0, bh * 0.36); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#7f1d1d'; ctx.beginPath(); ctx.moveTo(-1 * s, bh * 0.16); ctx.lineTo(1 * s, bh * 0.16); ctx.lineTo(0, bh * 0.46); ctx.closePath(); ctx.fill();
             ctx.restore();
-
-            // hat (player colour)
             const hatH = bh * 0.5;
             ctx.fillStyle = color; ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * s;
             ctx.beginPath();
-            ctx.moveTo(-bw / 2, -bh / 2 + 1 * s);
-            ctx.lineTo(-bw / 2, -bh / 2 - hatH + 4 * s);
+            ctx.moveTo(-bw / 2, -bh / 2 + 1 * s); ctx.lineTo(-bw / 2, -bh / 2 - hatH + 4 * s);
             ctx.quadraticCurveTo(-bw / 2, -bh / 2 - hatH, -bw / 2 + 4 * s, -bh / 2 - hatH);
-            ctx.lineTo(bw / 2 - 4 * s, -bh / 2 - hatH);
-            ctx.quadraticCurveTo(bw / 2, -bh / 2 - hatH, bw / 2, -bh / 2 - hatH + 4 * s);
+            ctx.lineTo(bw / 2 - 4 * s, -bh / 2 - hatH); ctx.quadraticCurveTo(bw / 2, -bh / 2 - hatH, bw / 2, -bh / 2 - hatH + 4 * s);
             ctx.lineTo(bw / 2, -bh / 2 + 1 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
             rr(-bw / 2 - 1.5 * s, -bh / 2 - 1.5 * s, bw + 3 * s, 2.5 * s, 1 * s); ctx.fill(); ctx.stroke();
-
-            // face
             const ey = -bh * 0.04, eR = (panic ? 1.7 : 1.2) * s;
             if (panic) {
                 ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 0.8 * s;
                 ctx.beginPath(); ctx.arc(-bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
                 ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(-bw * 0.2, ey - eR * 0.2, eR * 0.5, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey - eR * 0.2, eR * 0.5, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(0, bh * 0.04, 1.6 * s, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(0, bh * 0.06, 1.6 * s, 0, Math.PI * 2); ctx.fill();
             } else {
                 ctx.fillStyle = dark;
                 ctx.beginPath(); ctx.arc(-bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = dark; ctx.lineWidth = 1 * s;
-                ctx.beginPath(); ctx.moveTo(-1.5 * s, bh * 0.04); ctx.lineTo(1.5 * s, bh * 0.04); ctx.stroke();
+                ctx.strokeStyle = dark; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(-1.5 * s, bh * 0.06); ctx.lineTo(1.5 * s, bh * 0.06); ctx.stroke();
             }
-
-            // arms (in front) -- swinging while running, thrown up while panicking
             const arm = (sx, rot) => {
                 ctx.save(); ctx.translate(sx, -bh * 0.12); ctx.rotate(rot);
-                ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 1 * s;
-                rr(-1.4 * s, 0, 2.8 * s, 6.5 * s, 1.3 * s); ctx.fill(); ctx.stroke();
-                ctx.fillStyle = color; rr(-1.4 * s, 0, 2.8 * s, 3.2 * s, 1.3 * s); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 1 * s; rr(-1.3 * s, 0, 2.6 * s, 6 * s, 1.2 * s); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = color; rr(-1.3 * s, 0, 2.6 * s, 3 * s, 1.2 * s); ctx.fill();
                 ctx.restore();
             };
-            if (panic) {
-                const wv = Math.sin(t * 24 + phase) * 0.35;
-                arm(-bw * 0.48, -2.5 - wv); arm(bw * 0.48, 2.5 + wv);
-            } else {
-                arm(-bw * 0.48, 0.25 - legR); arm(bw * 0.48, -0.25 + legR);
-            }
+            if (panic) { const wv = Math.sin(t * 24 + phase) * 0.35; arm(-bw * 0.48, -2.5 - wv); arm(bw * 0.48, 2.5 + wv); }
+            else { arm(-bw * 0.48, 0.3 - legR); arm(bw * 0.48, -0.3 + legR); }
+            ctx.restore();
+            ctx.restore();
+        };
 
+        // Just the head + hat (for the window-peek houses), bobbing and looking left/right.
+        Lane.prototype.drawHead = function (cx, cy, s, emotion, t, phase, color, facing) {
+            const ctx = this.ctx; const panic = emotion === 'panic'; facing = facing || 1;
+            const bob = Math.sin(t * 2 + phase) * 0.8 * s;
+            const bw = 11 * s, bh = 10 * s, dark = '#1f2937';
+            const rr = (x, yy, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, yy, w, h, r); };
+            ctx.save(); ctx.translate(cx, cy - bob); ctx.scale(facing, 1);
+            ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * s;
+            rr(-bw / 2, -bh / 2, bw, bh, 3 * s); ctx.fill(); ctx.stroke();
+            const hatH = bh * 0.55; ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(-bw / 2, -bh / 2 + 1 * s); ctx.lineTo(-bw / 2, -bh / 2 - hatH + 4 * s);
+            ctx.quadraticCurveTo(-bw / 2, -bh / 2 - hatH, -bw / 2 + 4 * s, -bh / 2 - hatH);
+            ctx.lineTo(bw / 2 - 4 * s, -bh / 2 - hatH); ctx.quadraticCurveTo(bw / 2, -bh / 2 - hatH, bw / 2, -bh / 2 - hatH + 4 * s);
+            ctx.lineTo(bw / 2, -bh / 2 + 1 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+            rr(-bw / 2 - 1.5 * s, -bh / 2 - 1.5 * s, bw + 3 * s, 2.5 * s, 1 * s); ctx.fill(); ctx.stroke();
+            const ey = -bh * 0.02, eR = (panic ? 1.6 : 1.2) * s;
+            if (panic) {
+                ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 0.8 * s;
+                ctx.beginPath(); ctx.arc(-bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(-bw * 0.2, ey - eR * 0.2, eR * 0.5, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey - eR * 0.2, eR * 0.5, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(0, bh * 0.24, 1.5 * s, 0, Math.PI * 2); ctx.fill();
+            } else {
+                ctx.fillStyle = dark;
+                ctx.beginPath(); ctx.arc(-bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = dark; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(-1.5 * s, bh * 0.24); ctx.lineTo(1.5 * s, bh * 0.24); ctx.stroke();
+            }
             ctx.restore();
         };
 
         Lane.prototype.drawBlocks = function () {
+            // find the top house so rooftop residents know if they're covered (squished) or free
+            let topBlock = null, topY = Infinity;
+            this.blocks.forEach(b => { if (b.position.y < topY) { topY = b.position.y; topBlock = b; } });
             this.blocks.forEach(b => {
                 const panic = this.demolishing || Math.abs(b.angle) > 0.22 || Math.abs(b.angularSpeed || 0) > 0.06;
-                this.drawHouse(b, panic ? 'panic' : 'idle');
+                this.drawHouse(b, panic ? 'panic' : 'idle', b === topBlock);
                 if (b.starSparkles) this.drawSparkles(b.position.x, b.position.y);
             });
         };
@@ -967,7 +1018,7 @@
                 const ey = this.pivotY + (ropeLength - bh / 2) * Math.cos(swingAngle);
                 ctx.strokeStyle = '#78350f'; ctx.lineWidth = 4;
                 ctx.beginPath(); ctx.moveTo(pivotX, this.pivotY - 20); ctx.lineTo(ex, ey); ctx.stroke();
-                this.drawHouse(this.hanging, 'idle');
+                this.drawHouse(this.hanging, 'idle', true);
             }
         };
 
