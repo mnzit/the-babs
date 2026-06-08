@@ -117,11 +117,8 @@
                 <!-- Hazard toggles -->
                 <div class="bg-white/70 border border-indigo-100 rounded-2xl p-4 shadow-sm text-left">
                     <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Hazards</h3>
-                    <div class="grid grid-cols-3 gap-2">
-                        <button id="fx-wind" onclick="toggleFx('wind')" class="py-2 rounded-xl text-xs font-black bubbly-font border bg-emerald-500 text-white border-emerald-500">WIND</button>
-                        <button id="fx-junk" onclick="toggleFx('junk')" class="py-2 rounded-xl text-xs font-black bubbly-font border bg-emerald-500 text-white border-emerald-500">JUNK HOUSE</button>
-                        <button id="fx-zap" onclick="toggleFx('zap')" class="py-2 rounded-xl text-xs font-black bubbly-font border bg-emerald-500 text-white border-emerald-500">ZAP</button>
-                    </div>
+                    <!-- buttons generated from Babs.Hazards by buildHazardToggles() -->
+                    <div id="hazard-toggles" class="grid grid-cols-3 gap-2"></div>
                     <p class="text-[10px] text-slate-400 mt-2">Junk &amp; Zap are combo sabotages (Battle only).</p>
                 </div>
 
@@ -212,6 +209,7 @@
     <script src="js/events.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/houses.js"></script>
+    <script src="js/hazards.js"></script>
     <script src="js/renderer.js"></script>
     <script src="js/lane.js"></script>
     <script src="js/game.js"></script>

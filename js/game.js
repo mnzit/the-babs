@@ -8,19 +8,31 @@
         let gameMode = 'selfish';
         let matchActive = false;
         // Hazard toggles (on by default).
-        let fxWind = true, fxZap = true, fxJunk = true;
+        // Hazard enable/disable is owned by Babs.Hazards (see hazards.js). The lobby
+        // toggle buttons are generated from the registry, so a new hazard auto-appears.
+        function buildHazardToggles() {
+            const c = document.getElementById('hazard-toggles');
+            if (!c) return;
+            c.innerHTML = '';
+            Babs.Hazards.all().forEach(h => {
+                const btn = document.createElement('button');
+                btn.id = 'fx-' + h.id;
+                btn.innerText = h.label;
+                btn.onclick = () => toggleFx(h.id);
+                c.appendChild(btn);
+            });
+            updateHazardUI();
+        }
         function toggleFx(which) {
             playSound('click');
-            if (which === 'wind') fxWind = !fxWind;
-            else if (which === 'zap') fxZap = !fxZap;
-            else if (which === 'junk') fxJunk = !fxJunk;
+            Babs.Hazards.toggle(which);
             updateHazardUI();
         }
         function updateHazardUI() {
-            [['fx-wind', fxWind], ['fx-zap', fxZap], ['fx-junk', fxJunk]].forEach(([id, on]) => {
-                const el = document.getElementById(id); if (!el) return;
+            Babs.Hazards.all().forEach(h => {
+                const el = document.getElementById('fx-' + h.id); if (!el) return;
                 el.className = 'py-2 rounded-xl text-xs font-black bubbly-font border transition-all ' +
-                    (on ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-100 text-slate-400 border-slate-200');
+                    (h.enabled ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-100 text-slate-400 border-slate-200');
             });
         }
         let lanes = [];
@@ -93,6 +105,7 @@
 
         window.onload = function () {
             buildLanes(); // idle background
+            buildHazardToggles();
             updateLobbyUI();
             requestAnimationFrame(gameLoop);
 
@@ -167,7 +180,7 @@
 
             if (windTimer) clearTimeout(windTimer);
             gameWind = 0; lanes.forEach(l => { l.targetWind = 0; });
-            windTimer = setTimeout(scheduleWind, 3500 + Math.random() * 3000);
+            windTimer = setTimeout(scheduleWind, Babs.CONFIG.wind.firstDelayMin + Math.random() * Babs.CONFIG.wind.firstDelayRange);
         }
 
         // One shared, random wind for the whole arena. When a gust starts it warns the player
@@ -175,16 +188,17 @@
         let gameWind = 0;
         function scheduleWind() {
             if (!matchActive) return;
-            if (fxWind && Math.random() < 0.6) {           // a gust (only if wind is enabled)
+            const wc = Babs.CONFIG.wind;
+            if (Babs.Hazards.get('wind').enabled && Math.random() < wc.gustChance) {   // a gust (only if wind is enabled)
                 const dir = Math.random() < 0.5 ? -1 : 1;
-                gameWind = dir * (0.9 + Math.random() * 0.7);   // 0.9 - 1.6
+                gameWind = dir * (wc.gustMin + Math.random() * wc.gustRange);
                 announceWind(gameWind);
                 Babs.bus.emit('wind:gust', { magnitude: gameWind });
             } else {
                 gameWind = 0;                              // calm
             }
             lanes.forEach(l => { l.targetWind = gameWind; });
-            windTimer = setTimeout(scheduleWind, 4500 + Math.random() * 4000);
+            windTimer = setTimeout(scheduleWind, wc.cadenceMin + Math.random() * wc.cadenceRange);
         }
 
         // combo: a 3-perfect streak sabotages a random RIVAL tower (battle only). One of three:
@@ -195,18 +209,16 @@
             if (!rivals.length) return;
             const enemy = rivals[Math.floor(Math.random() * rivals.length)];
             const by = lane.player().name;
-            // combos either junk their house or zap it -- whichever hazards are enabled
-            const effects = [];
-            if (fxJunk) effects.push('junk');
-            if (fxZap) effects.push('zap');
+            // pick a random ENABLED combo sabotage from the registry and apply it
+            const effects = Babs.Hazards.enabled('combo');
             if (!effects.length) return;
             const choice = effects[Math.floor(Math.random() * effects.length)];
-            if (choice === 'junk') enemy.dropJunk(by); else enemy.zapHouse(by);
+            choice.apply(enemy, by);
         }
 
         // Battle: any tower that falls LEAD_HOUSES (5 = 50 m) behind the leader is knocked out.
         // Last tower standing wins.
-        const LEAD_HOUSES = 5;
+        const LEAD_HOUSES = Babs.CONFIG.battle.leadHouses;
         function checkBattleLead() {
             if (gameMode !== 'battle' || lanes.length < 2 || !matchActive) return;
             const alive = lanes.filter(l => l.alive);
