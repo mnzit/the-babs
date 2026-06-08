@@ -192,12 +192,14 @@ Babs.LaneRenderer = function (lane) {
         // shaking). `facing` flips him; `squish` flattens him (used when a house lands on his roof).
         Babs.LaneRenderer.prototype.drawGuy = function (cx, cy, s, emotion, t, phase, color, facing, squish, girl) {
             const ctx = this.ctx;
-            const panic = emotion === 'panic';
+            const isScared = emotion === 'panic';
+            const hasParachute = emotion === 'parachute';
+            const armsUp = isScared || hasParachute;
             facing = facing || 1; squish = (squish == null) ? 1 : squish;
-            const c = t * (panic ? 17 : 9) + phase;
+            const c = t * (isScared ? (17 + (phase%3)*2) : 9) + phase;
             const legR = Math.sin(c) * 0.55;
-            const lift = (panic ? Math.sin(c) : Math.abs(Math.sin(c)) * 0.8) * 1.4 * s;
-            const shake = panic ? Math.sin(t * 46 + phase) * 1.1 * s : 0;
+            const lift = (isScared ? Math.sin(c) : Math.abs(Math.sin(c)) * 0.8) * 1.4 * s;
+            const shake = isScared ? Math.sin(t * (46 + (phase%5)*4) + phase) * 1.1 * s : 0;
             const bw = 11 * s, bh = 13 * s, legLen = 6.5 * s, dark = '#1f2937';
             const hipY = -legLen, bodyCY = hipY - bh / 2;
             const rr = (x, yy, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, yy, w, h, r); };
@@ -230,12 +232,17 @@ Babs.LaneRenderer = function (lane) {
             ctx.lineTo(bw / 2 - 4 * s, -bh / 2 - hatH); ctx.quadraticCurveTo(bw / 2, -bh / 2 - hatH, bw / 2, -bh / 2 - hatH + 4 * s);
             ctx.lineTo(bw / 2, -bh / 2 + 1 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
             rr(-bw / 2 - 1.5 * s, -bh / 2 - 1.5 * s, bw + 3 * s, 2.5 * s, 1 * s); ctx.fill(); ctx.stroke();
-            const ey = -bh * 0.04, eR = (panic ? 1.7 : 1.2) * s;
-            if (panic) {
+            const ey = -bh * 0.04, eR = (isScared || hasParachute ? 2.3 : 1.8) * s;
+            if (isScared || hasParachute || emotion === 'happy') {
                 ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 0.8 * s;
                 ctx.beginPath(); ctx.arc(-bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
                 ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(-bw * 0.2, ey - eR * 0.2, eR * 0.5, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey - eR * 0.2, eR * 0.5, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(0, bh * 0.06, 1.6 * s, 0, Math.PI * 2); ctx.fill();
+                
+                if (hasParachute || emotion === 'happy') {
+                     ctx.beginPath(); ctx.arc(0, bh * 0.03, 1.8 * s, 0, Math.PI); ctx.stroke(); // smile
+                } else {
+                     ctx.beginPath(); ctx.arc(0, bh * 0.06, 1.8 * s, 0, Math.PI * 2); ctx.fill(); // open mouth
+                }
             } else {
                 ctx.fillStyle = dark;
                 ctx.beginPath(); ctx.arc(-bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.fill();
@@ -247,8 +254,13 @@ Babs.LaneRenderer = function (lane) {
                 ctx.fillStyle = color; rr(-1.3 * s, 0, 2.6 * s, 3 * s, 1.2 * s); ctx.fill();
                 ctx.restore();
             };
-            if (panic) { const wv = Math.sin(t * 24 + phase) * 0.35; arm(-bw * 0.48, -2.5 - wv); arm(bw * 0.48, 2.5 + wv); }
-            else { arm(-bw * 0.48, 0.3 - legR); arm(bw * 0.48, -0.3 + legR); }
+            if (armsUp) { 
+                const wv = hasParachute ? 0 : Math.sin(t * (20 + (phase%5)*2) + phase * 2.3) * 0.4; 
+                arm(-bw * 0.48, -2.5 - wv); 
+                arm(bw * 0.48, 2.5 + wv); 
+            } else { 
+                arm(-bw * 0.4, legR * 1.5); arm(bw * 0.4, -legR * 1.5); 
+            }
             if (girl) {
                 // skirt over the hips
                 ctx.fillStyle = color; ctx.strokeStyle = dark; ctx.lineWidth = 1.2 * s;

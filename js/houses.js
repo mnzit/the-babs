@@ -138,7 +138,8 @@ Babs.Houses.register({
                     ctx.restore();
                 }
 
-                chars.drawGuy(jx, jy, k * 0.9, 'panic', t, ph + g.id, color, g.jumpDir, 1);
+                const emotionToPass = (g.hasParachute && jt > 18) ? 'parachute' : 'panic';
+                chars.drawGuy(jx, jy, k * 0.9, emotionToPass, t, ph + g.id * 12, color, g.jumpDir, 1);
 
                 // Check mid-air collision with falling block
                 if (c.nextBlock && !c.nextBlock.isStatic) {
@@ -169,11 +170,11 @@ Babs.Houses.register({
 
                 if (jy > 1500) g.guyGone = true;
             } else {
-                chars.drawGuy(walk(0.9) * g.xOffset * w, -h / 2, k * 0.9, emotion, t, ph + g.id * 2, color, face(0.9), 1);
+                chars.drawGuy(walk(0.9) * g.xOffset * w, -h / 2, k * 0.9, emotion, t, ph + g.id * 12, color, face(0.9), 1);
             }
         } else {
             const sq = block.sq || 1;
-            chars.drawGuy(g.xOffset * w, -h / 2, k * 0.85, 'panic', t, ph + g.id * 2, color, 1, sq);
+            chars.drawGuy(g.xOffset * w, -h / 2, k * 0.85, 'panic', t, ph + g.id * 12, color, 1, sq);
             if (sq <= 0.1) {
                 if (chars && chars.lane) {
                     const lane = chars.lane;
