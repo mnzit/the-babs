@@ -237,6 +237,17 @@
                     <p id="battle-note" class="text-[11px] text-rose-600 font-semibold mt-2 hidden">Battle needs 2 to 4 players.</p>
                 </div>
 
+                <!-- Hazard toggles -->
+                <div class="bg-white/70 border border-indigo-100 rounded-2xl p-4 shadow-sm text-left">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Hazards</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button id="fx-wind" onclick="toggleFx('wind')" class="py-2 rounded-xl text-xs font-black bubbly-font border bg-emerald-500 text-white border-emerald-500">WIND</button>
+                        <button id="fx-junk" onclick="toggleFx('junk')" class="py-2 rounded-xl text-xs font-black bubbly-font border bg-emerald-500 text-white border-emerald-500">JUNK HOUSE</button>
+                        <button id="fx-zap" onclick="toggleFx('zap')" class="py-2 rounded-xl text-xs font-black bubbly-font border bg-emerald-500 text-white border-emerald-500">ZAP</button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-2">Junk &amp; Zap are combo sabotages (Battle only).</p>
+                </div>
+
                 <!-- Phone controllers over WiFi, peer-to-peer, no server -->
                 <div class="bg-white/70 border border-indigo-100 rounded-2xl p-4 shadow-sm text-left">
                     <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Phone controllers (WiFi, no server)</h3>
@@ -357,6 +368,22 @@
         let players = [ { id: 1, name: "Player 1", color: COLOR_POOL[0], isAI: false } ];
         let gameMode = 'selfish';
         let matchActive = false;
+        // Hazard toggles (on by default).
+        let fxWind = true, fxZap = true, fxJunk = true;
+        function toggleFx(which) {
+            playSound('click');
+            if (which === 'wind') fxWind = !fxWind;
+            else if (which === 'zap') fxZap = !fxZap;
+            else if (which === 'junk') fxJunk = !fxJunk;
+            updateHazardUI();
+        }
+        function updateHazardUI() {
+            [['fx-wind', fxWind], ['fx-zap', fxZap], ['fx-junk', fxJunk]].forEach(([id, on]) => {
+                const el = document.getElementById(id); if (!el) return;
+                el.className = 'py-2 rounded-xl text-xs font-black bubbly-font border transition-all ' +
+                    (on ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-100 text-slate-400 border-slate-200');
+            });
+        }
         let lanes = [];
         let windTimer = null;
 
@@ -622,18 +649,16 @@
             updateControllerUI();
         };
 
-        // sabotage: drop a small junk house onto this lane's tower
+        // sabotage: turn the rival's CURRENT house (on the crane, or the one they're dropping)
+        // into a heavy junk house so it wrecks their stack instead of dropping a random block.
         Lane.prototype.dropJunk = function (byName) {
-            const s = shrinkScale(this.successfulDrops) * 0.85;   // a chunky sabotage block
-            const w = DEFAULT_BOX_WIDTH * s, h = DEFAULT_BOX_HEIGHT * s;
-            const x = CANVAS_WIDTH / 2 + (Math.sin(this.swingTime * 7) * 60);
-            const j = Bodies.rectangle(x, this.pivotY + 60, w, h, { friction: 0.9, frictionStatic: 1.0, frictionAir: 0.02, restitution: 0 });
-            j.boxWidth = w; j.boxHeight = h; j.isJunk = true; j.byName = byName || '';
-            Body.setVelocity(j, { x: 0, y: 5 });
-            Composite.add(this.engine.world, j);
-            this.junk.push(j);
+            let target = this.hanging || this.pending;
+            if (!target) { this.spawnHanging(); target = this.hanging; }
+            if (!target) return;
+            target.isJunkHouse = true; target.byName = byName || '';
+            Body.setMass(target, target.mass * 3);      // heavy anvil-like junk
             this.flash = 1;
-            this.toast((byName || 'Rival') + "'s ANVIL!", '#ef4444');
+            this.toast((byName || 'Rival') + ' swapped your house for JUNK!', '#ef4444');
             playSound('wobble');
         };
 
@@ -915,6 +940,23 @@
             const type = block.houseType || 0;
             const dark = '#3f2a18';
             ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+
+            // a sabotaged "junk house": a heavy dark metal block stamped with the saboteur's name
+            if (block.isJunkHouse) {
+                ctx.fillStyle = '#475569'; ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 4.5;
+                ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 6); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#64748b'; ctx.beginPath(); ctx.roundRect(-w / 2 + 4, -h / 2 + 4, w - 8, (h - 8) * 0.4, 4); ctx.fill();
+                ctx.fillStyle = '#ef4444'; ctx.fillRect(-w / 2, -3, w, 6);
+                if (block.byName) {
+                    ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+                    ctx.font = 'bold ' + Math.round(Math.max(8, w * 0.15)) + 'px Fredoka';
+                    ctx.fillText(block.byName, 0, h * 0.2);
+                    ctx.textAlign = 'left';
+                }
+                ctx.restore();
+                return;
+            }
+
             ctx.strokeStyle = dark; ctx.lineWidth = 4.5;
             const moldingH = 9 * k;
             ctx.fillStyle = st.trim;
@@ -1381,7 +1423,7 @@
         let gameWind = 0;
         function scheduleWind() {
             if (!matchActive) return;
-            if (Math.random() < 0.6) {                     // a gust
+            if (fxWind && Math.random() < 0.6) {           // a gust (only if wind is enabled)
                 const dir = Math.random() < 0.5 ? -1 : 1;
                 gameWind = dir * (0.9 + Math.random() * 0.7);   // 0.9 - 1.6
                 announceWind(gameWind);
@@ -1401,8 +1443,13 @@
             if (!rivals.length) return;
             const enemy = rivals[Math.floor(Math.random() * rivals.length)];
             const by = lane.player().name;
-            // wind is now its own random event; combos either drop a junk house or zap theirs
-            if (Math.random() < 0.5) enemy.dropJunk(by); else enemy.zapHouse(by);
+            // combos either junk their house or zap it -- whichever hazards are enabled
+            const effects = [];
+            if (fxJunk) effects.push('junk');
+            if (fxZap) effects.push('zap');
+            if (!effects.length) return;
+            const choice = effects[Math.floor(Math.random() * effects.length)];
+            if (choice === 'junk') enemy.dropJunk(by); else enemy.zapHouse(by);
         }
 
         // Battle: any tower that falls LEAD_HOUSES (5 = 50 m) behind the leader is knocked out.
