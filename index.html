@@ -467,8 +467,8 @@
             b.styleIndex = Math.floor(Math.random() * HOUSE_STYLES.length); // each house looks different
             b.guyPhase = Math.random() * Math.PI * 2;                       // varied character animation
             b.houseType = Math.floor(Math.random() * 3);                    // 0 window-peek, 1 balcony, 2 rooftop
-            b.willJump = Math.random() < 0.45;                              // some roof guys get scared and jump
-            b.jumpAt = 90 + Math.random() * 260;                           // ...after this many frames
+            b.willJump = Math.random() < 0.5;                               // some roof guys get scared and jump
+            b.jumpAt = 40 + Math.random() * 120;                           // ...soon-ish, while still on top
             b.jumpDir = Math.random() < 0.5 ? -1 : 1;
             b.balconyTwo = Math.random() < 0.5;                            // 1 (a girl) or 2 (a guy + a girl) on a balcony
             this.hanging = b;
@@ -849,10 +849,10 @@
                         if (!block.jumping && block.willJump && block.roofT > (block.jumpAt || 180)) { block.jumping = true; block.jumpT = 0; }
                         if (block.jumping) {
                             block.jumpT++; const dir = block.jumpDir || 1, jt = block.jumpT;
-                            const jx = dir * (w * 0.3 + 1.6 * k * jt);
-                            const jy = -h / 2 - 3.4 * k * jt + 0.16 * k * jt * jt;   // leap up then fall away
+                            const jx = dir * (w * 0.32 + 0.2 * k * jt);              // hop off the edge
+                            const jy = -h / 2 - 2.5 * k * jt + 0.12 * k * jt * jt;   // up a little, then fall straight down
                             this.drawGuy(jx, jy, k * 0.9, 'panic', t, ph, color, dir, 1);
-                            if (jy > h * 1.4 || Math.abs(jx) > w) block.guyGone = true;
+                            if (jy > 340) block.guyGone = true;                       // gone only once he's fallen well below
                         } else {
                             this.drawGuy(walk(0.9) * w * 0.3, -h / 2, k * 0.9, emotion, t, ph, color, face(0.9), 1);
                         }
