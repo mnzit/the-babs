@@ -638,6 +638,17 @@
                     Composite.remove(this.engine.world, b); this.blocks.splice(i, 1); i--;
                 }
             }
+            // A house that slid off the stack and is now resting on the platform
+            // beside the tower is a loss — only the foundation may sit on the ground.
+            const base = this.blocks[0];
+            for (let i = 0; i < this.blocks.length; i++) {
+                const b = this.blocks[i];
+                if (b === base || b.isScaffold) continue;
+                const bh = b.boxHeight || DEFAULT_BOX_HEIGHT;
+                const onGround = (b.position.y + bh / 2) >= (PLATFORM_Y - 8);
+                const settledOnGround = onGround && b.speed < 1.4;
+                if (settledOnGround) { collapse = true; who = b.playerCreator || this.player(); }
+            }
             const live = this.blocks.filter(b => !b.isStatic);
             if (live.length >= 3 && live.filter(b => Math.abs(b.angle) > 0.48).length >= 3) { collapse = true; who = this.player(); }
             if (collapse) { playSound('collapse'); endLane(this, who); }
