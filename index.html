@@ -35,9 +35,17 @@
         function startMusic() {
             const a = document.getElementById('bgm');
             if (!a) return;
-            a.volume = 0.15;
+            a.volume = 0.12;
+            try { a.currentTime = 0; } catch (e) {}
             const p = a.play();
             if (p && p.catch) p.catch(function () {});
+        }
+        // Stop the music (when returning to the menu).
+        function stopMusic() {
+            const a = document.getElementById('bgm');
+            if (!a) return;
+            a.pause();
+            try { a.currentTime = 0; } catch (e) {}
         }
 
         // ---------------------------------------------------------------------------
@@ -224,7 +232,10 @@
                     <p id="gameover-summary" class="text-slate-300 text-sm"></p>
                 </div>
                 <div id="gameover-stats" class="bg-slate-800 border border-slate-700 rounded-2xl p-4 grid grid-cols-2 gap-4"></div>
-                <button onclick="resetToLobby()" class="w-full py-3.5 rounded-xl font-black text-white bg-indigo-600 hover:bg-indigo-500 transition-all bubbly-font">BACK TO LOBBY</button>
+                <div class="flex flex-col gap-2">
+                    <button onclick="playAgain()" class="w-full py-3.5 rounded-xl font-black text-white bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 hover:scale-[1.02] active:scale-95 transition-all bubbly-font uppercase tracking-wider">PLAY AGAIN</button>
+                    <button onclick="resetToLobby()" class="w-full py-2.5 rounded-xl font-bold text-slate-300 bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-all bubbly-font">BACK TO LOBBY</button>
+                </div>
             </div>
         </div>
 
@@ -987,6 +998,7 @@
             if (gameMode === 'battle' && players.length !== 2) { updateLobbyUI(); return; }
             playSound('perfect');
             startMusic();
+            demoActive = false; demoModalShown = false;
             buildLanes();
             matchActive = true;
             lanes.forEach(l => { l.players.forEach(p => p.spellEnergy = 2); l.spawnHanging(); });
@@ -1082,6 +1094,7 @@
 
         function resetToLobby() {
             playSound('click');
+            stopMusic();                 // music only plays during a game
             matchActive = false;
             demoActive = false; demoModalShown = false;
             if (windTimer) { clearInterval(windTimer); windTimer = null; }
@@ -1090,6 +1103,13 @@
             document.getElementById('gameover-modal').classList.remove('flex');
             buildLanes();
             updateLobbyUI();
+        }
+
+        // "Play again" from the game-over screen: same players & mode, straight into a new match.
+        function playAgain() {
+            document.getElementById('gameover-modal').classList.add('hidden');
+            document.getElementById('gameover-modal').classList.remove('flex');
+            startGame();
         }
 
         // Solo spell button hook
