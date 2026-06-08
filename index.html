@@ -146,10 +146,8 @@
     <div id="arena" class="relative w-screen h-screen overflow-hidden select-none bg-sky-200">
 
         <!-- One or two play lanes (each its own canvas) -->
-        <div id="lanes" class="absolute inset-0 flex z-0">
-            <div class="relative flex-1 h-full"><canvas id="lane-canvas-0" class="w-full h-full block touch-none"></canvas></div>
-            <div id="lane-wrap-1" class="relative flex-1 h-full border-l-4 border-white/50 hidden"><canvas id="lane-canvas-1" class="w-full h-full block touch-none"></canvas></div>
-        </div>
+        <!-- 1-4 play lanes, each its own canvas, built in JS -->
+        <div id="lanes" class="absolute inset-0 flex z-0"></div>
 
         <!-- TOP HUD (no bar, just the title / mode / stats floating over the sky) -->
         <div class="absolute top-0 inset-x-0 z-20 flex justify-between items-start gap-2 px-3 py-2 pointer-events-none">
@@ -184,17 +182,8 @@
             <div id="drop-hint" class="px-5 py-2 rounded-full bg-indigo-600/90 text-white font-black bubbly-font text-sm shadow-lg animate-pulse">TAP TO DROP</div>
         </div>
 
-        <!-- BOTTOM CONTROLS: BATTLE (two drop buttons) -->
-        <div id="battle-controls" class="absolute bottom-0 inset-x-0 z-20 px-3 pb-4 pt-10 hidden items-end justify-between gap-3 pointer-events-none bg-gradient-to-t from-sky-900/15 to-transparent">
-            <button id="p1-drop" class="pointer-events-auto flex-1 max-w-[46%] py-4 rounded-2xl border-4 border-white/80 bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg active:scale-95 transition-all text-white">
-                <div id="p1-name" class="font-black text-base sm:text-xl bubbly-font uppercase leading-none">Player 1</div>
-                <div class="text-[10px] text-indigo-100/90 font-bold mt-1">tap here or SPACE</div>
-            </button>
-            <button id="p2-drop" class="pointer-events-auto flex-1 max-w-[46%] py-4 rounded-2xl border-4 border-white/80 bg-gradient-to-br from-rose-500 to-rose-700 shadow-lg active:scale-95 transition-all text-white">
-                <div id="p2-name" class="font-black text-base sm:text-xl bubbly-font uppercase leading-none">Player 2</div>
-                <div class="text-[10px] text-rose-100/90 font-bold mt-1">tap here or ENTER</div>
-            </button>
-        </div>
+        <!-- BOTTOM CONTROLS: BATTLE (one drop button per player, built in JS) -->
+        <div id="battle-controls" class="absolute bottom-0 inset-x-0 z-20 px-2 pb-4 pt-10 hidden items-end justify-between gap-2 pointer-events-none bg-gradient-to-t from-sky-900/15 to-transparent"></div>
 
         <!-- LOBBY MODAL -->
         <div id="lobby-modal" class="absolute inset-0 bg-sky-100/95 flex flex-col justify-center items-center z-40 p-4 sm:p-8 overflow-y-auto transition-all duration-500">
@@ -225,7 +214,7 @@
                         <span id="player-count-label">1 player</span>
                     </h3>
                     <div class="space-y-2" id="lobby-player-slots"></div>
-                    <p id="battle-note" class="text-[11px] text-rose-600 font-semibold mt-2 hidden">Battle needs exactly 2 players.</p>
+                    <p id="battle-note" class="text-[11px] text-rose-600 font-semibold mt-2 hidden">Battle needs 2 to 4 players.</p>
                 </div>
 
                 <!-- Phone controllers over WiFi, peer-to-peer, no server -->
@@ -366,8 +355,7 @@
             badge.innerText = label;
 
             if (mode === 'battle') {
-                while (players.length < 2) addPlayer();
-                if (players.length > 2) players = players.slice(0, 2);
+                while (players.length < 2) addPlayer();   // 2-4 towers
             } else if (mode === 'selfish') {
                 if (players.length > 1) players = players.slice(0, 1);
             }
@@ -388,7 +376,7 @@
                     ${players.length > 1 ? `<button onclick="removePlayer(${idx})" class="text-xs text-rose-500 hover:text-rose-600 font-bold px-1 shrink-0">remove</button>` : ''}`;
                 c.appendChild(row);
             });
-            const maxPlayers = gameMode === 'battle' ? 2 : 4;
+            const maxPlayers = 4;
             if (players.length < maxPlayers) {
                 const add = document.createElement('button');
                 add.className = 'w-full flex items-center justify-center p-2 rounded-xl border border-dashed border-indigo-500/40 hover:bg-indigo-50 text-indigo-500 text-xs font-bold transition-all';
@@ -397,7 +385,7 @@
                 c.appendChild(add);
             }
             document.getElementById('player-count-label').innerText = players.length + (players.length === 1 ? ' player' : ' players');
-            document.getElementById('battle-note').classList.toggle('hidden', !(gameMode === 'battle' && players.length !== 2));
+            document.getElementById('battle-note').classList.toggle('hidden', !(gameMode === 'battle' && (players.length < 2 || players.length > 4)));
         }
 
         function renamePlayer(idx, val) { players[idx].name = val.trim() || ('Player ' + (idx + 1)); }
@@ -1201,17 +1189,11 @@
         let canvas0, canvas1;
 
         window.onload = function () {
-            canvas0 = document.getElementById('lane-canvas-0');
-            canvas1 = document.getElementById('lane-canvas-1');
             buildLanes(); // idle background
             updateLobbyUI();
             requestAnimationFrame(gameLoop);
 
-            canvas0.addEventListener('pointerdown', function (e) { e.preventDefault(); if (lanes[0]) lanes[0].drop(); });
-            canvas1.addEventListener('pointerdown', function (e) { e.preventDefault(); if (lanes[1]) lanes[1].drop(); });
-            document.getElementById('p1-drop').addEventListener('pointerdown', function (e) { e.preventDefault(); if (lanes[0]) lanes[0].drop(); });
-            document.getElementById('p2-drop').addEventListener('pointerdown', function (e) { e.preventDefault(); if (lanes[1]) lanes[1].drop(); });
-
+            // P1 = Space, P2 = Enter (the rest tap their own tower or a button, or use a phone)
             window.addEventListener('keydown', function (e) {
                 if (e.code === 'Space') { e.preventDefault(); if (lanes[0]) lanes[0].drop(); }
                 else if (e.code === 'Enter') { e.preventDefault(); if (lanes[1]) lanes[1].drop(); }
@@ -1219,20 +1201,45 @@
             window.addEventListener('resize', function () { lanes.forEach(l => l.resize()); });
         };
 
+        // Build 1 lane (solo/co-op) or 2-4 lanes (battle, one tower per player). Each lane gets its
+        // own freshly-created canvas, and tapping a tower drops that tower.
         function buildLanes() {
-            lanes.forEach(l => { /* let GC reclaim engines */ });
-            if (gameMode === 'battle') {
-                document.getElementById('lane-wrap-1').classList.remove('hidden');
-                lanes = [ new Lane(canvas0, [players[0]], players[0].color), new Lane(canvas1, [players[1] || players[0]], (players[1] || players[0]).color) ];
-            } else {
-                document.getElementById('lane-wrap-1').classList.add('hidden');
-                lanes = [ new Lane(canvas0, players.slice(), players[0].color) ];
+            const lanesEl = document.getElementById('lanes');
+            lanesEl.innerHTML = '';
+            const count = gameMode === 'battle' ? Math.max(2, Math.min(4, players.length)) : 1;
+            lanes = [];
+            for (let i = 0; i < count; i++) {
+                const wrap = document.createElement('div');
+                wrap.className = 'relative flex-1 h-full' + (i > 0 ? ' border-l-4 border-white/50' : '');
+                const cv = document.createElement('canvas');
+                cv.className = 'w-full h-full block touch-none';
+                wrap.appendChild(cv); lanesEl.appendChild(wrap);
+                const lanePlayers = gameMode === 'battle' ? [players[i] || players[0]] : players.slice();
+                const lane = new Lane(cv, lanePlayers, (lanePlayers[0] || players[0]).color);
+                cv.addEventListener('pointerdown', function (e) { e.preventDefault(); lane.drop(); });
+                lanes.push(lane);
             }
             lanes.forEach(l => l.players.forEach(p => { if (p.spellEnergy === undefined) p.spellEnergy = 2; }));
         }
 
+        // Build the per-player drop buttons for battle mode.
+        function buildBattleControls() {
+            const bc = document.getElementById('battle-controls');
+            bc.innerHTML = '';
+            lanes.forEach((lane, i) => {
+                const p = lane.player();
+                const btn = document.createElement('button');
+                btn.className = 'pointer-events-auto flex-1 min-w-0 py-3 rounded-2xl border-4 border-white/80 shadow-lg active:scale-95 transition-all text-white';
+                btn.style.background = `linear-gradient(135deg, ${p.color}, ${p.color}cc)`;
+                const key = i === 0 ? 'SPACE' : (i === 1 ? 'ENTER' : 'tap');
+                btn.innerHTML = `<div id="p${i + 1}-name" class="font-black text-sm sm:text-lg bubbly-font uppercase leading-none truncate px-1">${p.name}</div><div class="text-[9px] text-white/80 font-bold mt-0.5">tap / ${key}</div>`;
+                btn.addEventListener('pointerdown', function (e) { e.preventDefault(); lane.drop(); });
+                bc.appendChild(btn);
+            });
+        }
+
         function startGame() {
-            if (gameMode === 'battle' && players.length !== 2) { updateLobbyUI(); return; }
+            if (gameMode === 'battle' && (players.length < 2 || players.length > 4)) { updateLobbyUI(); return; }
             playSound('perfect');
             startMusic();
             demoActive = false; demoModalShown = false;
@@ -1242,15 +1249,12 @@
 
             // visibility
             const battle = gameMode === 'battle';
+            if (battle) buildBattleControls();
             document.getElementById('battle-controls').classList.toggle('hidden', !battle);
             document.getElementById('battle-controls').classList.toggle('flex', battle);
             document.getElementById('solo-controls').classList.toggle('hidden', battle);
             document.getElementById('turn-hud').classList.toggle('hidden', battle);
             document.getElementById('solo-stats').classList.toggle('hidden', battle);
-            if (battle) {
-                document.getElementById('p1-name').innerText = players[0].name;
-                document.getElementById('p2-name').innerText = players[1].name;
-            }
             document.getElementById('lobby-modal').classList.add('opacity-0', 'pointer-events-none');
             document.getElementById('gameover-modal').classList.add('hidden');
             document.getElementById('gameover-modal').classList.remove('flex');
@@ -1265,26 +1269,24 @@
             }, 5000);
         }
 
-        // combo: a 3-perfect streak sabotages the OTHER lane (battle only)
+        // combo: a 3-perfect streak sabotages a random RIVAL tower (battle only)
         function triggerComboEffect(lane) {
-            const enemy = lanes.find(l => l !== lane && l.alive);
-            if (!enemy) return;
+            const rivals = lanes.filter(l => l !== lane && l.alive);
+            if (!rivals.length) return;
+            const enemy = rivals[Math.floor(Math.random() * rivals.length)];
             if (Math.random() < 0.5) enemy.spikeWind(); else enemy.dropJunk();
         }
 
-        // Battle: if one tower leads the other by LEAD_HOUSES (5 = 50 m), the trailing player loses.
+        // Battle: any tower that falls LEAD_HOUSES (5 = 50 m) behind the leader is knocked out.
+        // Last tower standing wins.
         const LEAD_HOUSES = 5;
         function checkBattleLead() {
             if (gameMode !== 'battle' || lanes.length < 2 || !matchActive) return;
-            const a = lanes[0], b = lanes[1];
-            if (!a.alive || !b.alive) return;
-            if (a.successfulDrops - b.successfulDrops >= LEAD_HOUSES) {
-                b.alive = false; b.toast('OUT-CLIMBED', '#f43f5e');
-                endGame(a.player(), b.player(), true);
-            } else if (b.successfulDrops - a.successfulDrops >= LEAD_HOUSES) {
-                a.alive = false; a.toast('OUT-CLIMBED', '#f43f5e');
-                endGame(b.player(), a.player(), true);
-            }
+            const alive = lanes.filter(l => l.alive);
+            const leader = Math.max.apply(null, alive.map(l => l.successfulDrops));
+            alive.forEach(l => {
+                if (l.alive && leader - l.successfulDrops >= LEAD_HOUSES) { l.toast('OUT-CLIMBED', '#f43f5e'); endLane(l, l.player()); }
+            });
         }
 
         function endLane(lane, loser) {
@@ -1302,6 +1304,7 @@
 
         let demoActive = false, demoModalShown = false;
         function endGame(winner, loser, battle) {
+            if (demoActive) return;   // a game-over sequence is already running
             matchActive = false;
             if (windTimer) { clearInterval(windTimer); windTimer = null; }
             // Don't show the modal yet -- first play the demolition, then reveal it (see gameLoop).
@@ -1314,11 +1317,12 @@
 
             if (battle) {
                 title.innerText = winner ? (winner.name + ' WINS') : 'DRAW';
-                const w = lanes[0], x = lanes[1];
-                summary.innerText = (loser ? loser.name + "'s tower fell. " : '') + 'Best stack wins the battle.';
-                stats.innerHTML =
-                    `<div><span class="text-[10px] text-slate-400 uppercase tracking-widest font-bold block">${w.player().name}</span><span class="text-2xl font-black text-indigo-400 bubbly-font">${(w.successfulDrops*10).toFixed(0)} m</span></div>` +
-                    `<div><span class="text-[10px] text-slate-400 uppercase tracking-widest font-bold block">${x.player().name}</span><span class="text-2xl font-black text-rose-400 bubbly-font">${(x.successfulDrops*10).toFixed(0)} m</span></div>`;
+                summary.innerText = (loser ? loser.name + "'s tower fell. " : '') + 'Tallest tower standing wins.';
+                stats.className = 'bg-slate-800 border border-slate-700 rounded-2xl p-4 grid gap-3 ' + (lanes.length > 2 ? 'grid-cols-2' : 'grid-cols-2');
+                stats.innerHTML = lanes.map(l => {
+                    const win = winner && l.player() === winner;
+                    return `<div><span class="text-[10px] text-slate-400 uppercase tracking-widest font-bold block truncate">${l.player().name}${win ? ' (win)' : ''}</span><span class="text-2xl font-black bubbly-font" style="color:${l.accent}">${(l.successfulDrops * 10).toFixed(0)} m</span></div>`;
+                }).join('');
             } else {
                 title.innerText = 'TOWER COLLAPSED';
                 const drops = lanes[0].successfulDrops;
