@@ -157,9 +157,8 @@
         function startGame() {
             if (gameMode === 'battle' && (players.length < 2 || players.length > 4)) { updateLobbyUI(); return; }
             Babs.bus.emit('game:playing', {});
-            demoActive = false; demoModalShown = false;
             buildLanes();
-            matchActive = true;
+            Babs.StateMachine.to('playing');
             lanes.forEach(l => { l.players.forEach(p => p.spellEnergy = 2); l.spawnHanging(); });
 
             // visibility
@@ -242,12 +241,41 @@
         }
 
         let demoActive = false, demoModalShown = false;
+
+        // ---------------------------------------------------------------------------
+        // GameStateMachine: the single authority for the match phase. Transitioning
+        // here is what writes the legacy flags matchActive / demoActive / demoModalShown
+        // (still read by lane logic, the loop, and tests), so the booleans can never
+        // drift out of a valid combination.
+        //   lobby -> playing -> demolition -> gameover -> (playing | lobby)
+        // ---------------------------------------------------------------------------
+        Babs.StateMachine = (function () {
+            const FLAGS = {
+                lobby:      { match: false, demo: false, modal: false },
+                playing:    { match: true,  demo: false, modal: false },
+                demolition: { match: false, demo: true,  modal: false },
+                gameover:   { match: false, demo: true,  modal: true  }
+            };
+            let current = 'lobby';
+            return {
+                is: function (s) { return current === s; },
+                state: function () { return current; },
+                to: function (s) {
+                    if (!FLAGS[s]) return;
+                    current = s;
+                    matchActive = FLAGS[s].match;
+                    demoActive = FLAGS[s].demo;
+                    demoModalShown = FLAGS[s].modal;
+                    Babs.bus.emit('state:' + s, {});
+                }
+            };
+        })();
+
         function endGame(winner, loser, battle) {
-            if (demoActive) return;   // a game-over sequence is already running
-            matchActive = false;
+            if (Babs.StateMachine.is('demolition') || Babs.StateMachine.is('gameover')) return;   // a game-over sequence is already running
             if (windTimer) { clearInterval(windTimer); windTimer = null; }
             // Don't show the modal yet -- first play the demolition, then reveal it (see gameLoop).
-            demoActive = true; demoModalShown = false;
+            Babs.StateMachine.to('demolition');
             ['solo-controls', 'battle-controls', 'turn-hud'].forEach(id => { const e = document.getElementById(id); if (e) { e.classList.add('hidden'); e.classList.remove('flex'); } });
             lanes.forEach(l => l.startDemolition());
             const title = document.getElementById('gameover-title');
@@ -276,8 +304,7 @@
         function resetToLobby() {
             playSound('click');
             Babs.bus.emit('game:reset', {});   // stops music
-            matchActive = false;
-            demoActive = false; demoModalShown = false;
+            Babs.StateMachine.to('lobby');
             if (windTimer) { clearInterval(windTimer); windTimer = null; }
             document.getElementById('lobby-modal').classList.remove('opacity-0', 'pointer-events-none');
             document.getElementById('gameover-modal').classList.add('hidden');
@@ -316,8 +343,8 @@
                 l.render();
             });
             // once every lane has finished crumbling, reveal the game-over screen
-            if (demoActive && !demoModalShown && lanes.length && lanes.every(l => !l.demolishing)) {
-                demoModalShown = true;
+            if (Babs.StateMachine.is('demolition') && lanes.length && lanes.every(l => !l.demolishing)) {
+                Babs.StateMachine.to('gameover');
                 const m = document.getElementById('gameover-modal');
                 m.classList.remove('hidden'); m.classList.add('flex');
                 if (typeof broadcastToControllers === 'function') broadcastToControllers({ a: 'gameover' });
