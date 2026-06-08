@@ -293,8 +293,8 @@
                 class="mt-2 w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-base font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <p class="text-[11px] text-slate-500 mt-1">This shows up on the big screen.</p>
             <button id="cv-drop" class="flex-1 my-4 rounded-3xl bg-gradient-to-br from-indigo-500 to-indigo-700 active:scale-95 transition-transform flex flex-col items-center justify-center shadow-2xl">
-                <span class="text-6xl font-black bubbly-font tracking-wider">DROP</span>
-                <span class="text-sm text-indigo-100/80 mt-2">tap to drop your house</span>
+                <span id="cv-drop-label" class="text-6xl font-black bubbly-font tracking-wider">DROP</span>
+                <span id="cv-drop-sub" class="text-sm text-indigo-100/80 mt-2">tap to drop your house</span>
             </button>
         </div>
 
@@ -1260,6 +1260,7 @@
             document.getElementById('gameover-modal').classList.remove('flex');
 
             updateControllerUI();
+            if (typeof broadcastToControllers === 'function') broadcastToControllers({ a: 'playing' });
             lanes.forEach(l => { if (l.player().isAI) l.runAI(); });
 
             if (windTimer) clearInterval(windTimer);
@@ -1380,6 +1381,7 @@
                 demoModalShown = true;
                 const m = document.getElementById('gameover-modal');
                 m.classList.remove('hidden'); m.classList.add('flex');
+                if (typeof broadcastToControllers === 'function') broadcastToControllers({ a: 'gameover' });
             }
             // solo DOM HUD
             if (gameMode !== 'battle' && lanes[0]) {
@@ -1399,6 +1401,12 @@
         // ---------------------------------------------------------------------------
         const peers = {};          // slot -> { pc, dc, connected }
         let pairScan = null;       // active camera scan loop control
+
+        // Send a message to every connected phone controller.
+        function broadcastToControllers(obj) {
+            const s = JSON.stringify(obj);
+            for (const k in peers) { const dc = peers[k] && peers[k].dc; if (dc && dc.readyState === 'open') { try { dc.send(s); } catch (e) {} } }
+        }
 
         // Remote inputs map to a lane just like local taps.
         function remoteDrop(slot) { const li = gameMode === 'battle' ? (slot - 1) : 0; if (lanes[li]) lanes[li].drop(); }
@@ -1537,6 +1545,7 @@
                 let m; try { m = JSON.parse(e.data); } catch (_) { return; }
                 if (m.a === 'drop') remoteDrop(slot);
                 else if (m.a === 'spell') remoteSpell(slot, m.s);
+                else if (m.a === 'playagain') { if (!matchActive) playAgain(); }
                 else if (m.a === 'name' && players[slot - 1]) { setPlayerName(slot, m.n); }
             };
             const offer = await pc.createOffer();
@@ -1613,10 +1622,31 @@
             joinDC.onmessage = (e) => {
                 let m; try { m = JSON.parse(e.data); } catch (_) { return; }
                 if (m.a === 'welcome') { const el = document.getElementById('cv-name'); if (el) el.innerText = 'Player ' + m.slot; }
+                else if (m.a === 'gameover') setControllerMode('again');
+                else if (m.a === 'playing') setControllerMode('drop');
             };
         }
         function cvSend(obj) { if (joinDC && joinDC.readyState === 'open') joinDC.send(JSON.stringify(obj)); }
-        let cvWired = false;
+        let cvWired = false, cvMode = 'drop';
+
+        // Swap the phone's big button between DROP (in game) and PLAY AGAIN (game over).
+        function setControllerMode(mode) {
+            cvMode = mode;
+            const btn = document.getElementById('cv-drop');
+            const label = document.getElementById('cv-drop-label');
+            const sub = document.getElementById('cv-drop-sub');
+            if (!btn) return;
+            if (mode === 'again') {
+                if (label) label.innerText = 'PLAY AGAIN';
+                if (sub) sub.innerText = 'tap to restart';
+                btn.className = 'flex-1 my-4 rounded-3xl bg-gradient-to-br from-orange-500 to-amber-500 active:scale-95 transition-transform flex flex-col items-center justify-center shadow-2xl';
+                if (label) label.classList.remove('text-6xl'); if (label) label.classList.add('text-5xl');
+            } else {
+                if (label) { label.innerText = 'DROP'; label.classList.remove('text-5xl'); label.classList.add('text-6xl'); }
+                if (sub) sub.innerText = 'tap to drop your house';
+                btn.className = 'flex-1 my-4 rounded-3xl bg-gradient-to-br from-indigo-500 to-indigo-700 active:scale-95 transition-transform flex flex-col items-center justify-center shadow-2xl';
+            }
+        }
 
         function showControllerView() {
             document.getElementById('join-overlay').classList.add('hidden');
@@ -1629,7 +1659,7 @@
             cvWired = true;
             nameInput.addEventListener('input', () => { const v = nameInput.value.trim(); if (v) cvSend({ a: 'name', n: v }); });
             const drop = document.getElementById('cv-drop');
-            const fire = (e) => { e.preventDefault(); if (navigator.vibrate) navigator.vibrate(15); cvSend({ a: 'drop' }); };
+            const fire = (e) => { e.preventDefault(); if (navigator.vibrate) navigator.vibrate(15); cvSend({ a: cvMode === 'again' ? 'playagain' : 'drop' }); };
             drop.addEventListener('touchstart', fire, { passive: false });
             drop.addEventListener('mousedown', fire);
             document.querySelectorAll('.cv-spell').forEach(b => {
