@@ -51,11 +51,7 @@
             b.eyeState = 'neutral';
             b.styleIndex = Math.floor(Math.random() * HOUSE_STYLES.length); // each house looks different
             b.guyPhase = Math.random() * Math.PI * 2;                       // varied character animation
-            b.houseType = Math.floor(Math.random() * 3);                    // 0 window-peek, 1 balcony, 2 rooftop
-            b.willJump = Math.random() < 0.5;                               // some roof guys get scared and jump
-            b.jumpAt = 40 + Math.random() * 120;                           // ...soon-ish, while still on top
-            b.jumpDir = Math.random() < 0.5 ? -1 : 1;
-            b.balconyTwo = Math.random() < 0.5;                            // 1 (a girl) or 2 (a guy + a girl) on a balcony
+            Babs.Houses.pickRandom().initBlock(b);                          // pick a house type + seed its props
             this.hanging = b;
             this.isHanging = true;
         };
@@ -576,67 +572,12 @@
             const walk = (sp) => Math.sin(t * sp + ph);
             const face = (sp) => (Math.cos(t * sp + ph) >= 0 ? 1 : -1);
 
-            if (type === 2) {
-                // ROOFTOP: walks the roof; sometimes gets scared and leaps off; if a house lands on
-                // him while he's still up there he gets squished flat (visibly), then he's gone.
-                ctx.fillStyle = st.trim; ctx.strokeStyle = dark; ctx.lineWidth = 2.5;   // little chimney
-                ctx.beginPath(); ctx.roundRect(w * 0.3, -h / 2 - 8 * k, 5 * k, 8 * k, 1); ctx.fill(); ctx.stroke();
-                if (!block.guyGone) {
-                    if (isTop) {
-                        block.squishT = 0;
-                        block.roofT = (block.roofT || 0) + 1;
-                        if (!block.jumping && block.willJump && block.roofT > (block.jumpAt || 180)) { block.jumping = true; block.jumpT = 0; }
-                        if (block.jumping) {
-                            block.jumpT++; const dir = block.jumpDir || 1, jt = block.jumpT;
-                            const jx = dir * (w * 0.32 + 0.2 * k * jt);              // hop off the edge
-                            const jy = -h / 2 - 2.5 * k * jt + 0.12 * k * jt * jt;   // up a little, then fall straight down
-                            this.drawGuy(jx, jy, k * 0.9, 'panic', t, ph, color, dir, 1);
-                            if (jy > 340) block.guyGone = true;                       // gone only once he's fallen well below
-                        } else {
-                            this.drawGuy(walk(0.9) * w * 0.3, -h / 2, k * 0.9, emotion, t, ph, color, face(0.9), 1);
-                        }
-                    } else {
-                        const dur = 26;
-                        block.squishT = (block.squishT || 0) + 1;
-                        const p = Math.min(1, block.squishT / dur);
-                        const sq = 1 - p * 0.9;                     // flatten 1 -> 0.1
-                        const fy = -h / 2 + (4 + p * 9) * k;        // pressed down onto the wall as he flattens
-                        this.drawGuy(0, fy, k * 0.85, 'panic', t, ph, color, 1, sq);
-                        if (block.squishT >= dur) block.guyGone = true;   // squished flat -> gone
-                    }
-                }
-            } else if (type === 1) {
-                // BALCONY: 1 or 2 residents (a guy + a girl, or just a girl) on a railed ledge
-                ctx.fillStyle = '#33414f'; ctx.strokeStyle = dark; ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.roundRect(-w * 0.16, -h * 0.12, w * 0.32, h * 0.4, 4); ctx.fill(); ctx.stroke();
-                const ledgeY = h * 0.14;
-                if (block.balconyTwo) {
-                    this.drawGuy(-w * 0.13 + walk(0.7) * 4, ledgeY, k * 0.8, emotion, t, ph, color, 1, 1, false);
-                    this.drawGuy(w * 0.13 + walk(0.9) * 4, ledgeY, k * 0.8, emotion, t, ph + 2, color, -1, 1, true);
-                } else {
-                    this.drawGuy(walk(0.8) * w * 0.18, ledgeY, k * 0.9, emotion, t, ph, color, face(0.8), 1, true);
-                }
-                const lw2 = w * 0.78;
-                ctx.fillStyle = st.trim; ctx.strokeStyle = dark; ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.roundRect(-lw2 / 2, ledgeY, lw2, 5 * k, 2); ctx.fill(); ctx.stroke();
-                ctx.strokeStyle = st.trim; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(-lw2 / 2, ledgeY); ctx.lineTo(-lw2 / 2, ledgeY - 11 * k);
-                ctx.moveTo(lw2 / 2, ledgeY); ctx.lineTo(lw2 / 2, ledgeY - 11 * k);
-                ctx.moveTo(-lw2 / 2, ledgeY - 11 * k); ctx.lineTo(lw2 / 2, ledgeY - 11 * k);
-                for (let rx = -lw2 / 2 + 8 * k; rx < lw2 / 2 - 3; rx += 8 * k) { ctx.moveTo(rx, ledgeY); ctx.lineTo(rx, ledgeY - 11 * k); }
-                ctx.stroke();
-            } else {
-                // WINDOW PEEK: small window, only his head shows
-                const wW = Math.min(w * 0.36, 34), wH = 16 * k;
-                const wx = -wW / 2, wy = -h * 0.05 - wH / 2;
-                ctx.fillStyle = '#cfeafe'; ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 5); ctx.fill();
-                ctx.save(); ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 5); ctx.clip();
-                this.drawHead(walk(1.1) * wW * 0.16, wy + wH * 0.68, k * 0.95, emotion, t, ph, color, face(1.1));
-                ctx.restore();
-                ctx.strokeStyle = st.trim; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.roundRect(wx, wy, wW, wH, 5); ctx.stroke();
-                ctx.fillStyle = st.trim; ctx.beginPath(); ctx.roundRect(wx - 2, wy + wH - 3 * k, wW + 4, 3.5 * k, 1.5); ctx.fill(); ctx.stroke();
-            }
+            // Type-specific decoration + resident(s) come from the house-type strategy.
+            Babs.Houses.get(type).draw({
+                ctx: ctx, w: w, h: h, k: k, t: t, ph: ph, color: color, st: st, dark: dark,
+                emotion: emotion, isTop: isTop, walk: walk, face: face,
+                block: block, chars: this
+            });
 
             if (block.sabotageActive === 'ice') { ctx.fillStyle = 'rgba(186,230,253,0.45)'; ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 12); ctx.fill(); }
             ctx.restore();
