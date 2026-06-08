@@ -408,6 +408,8 @@
             this.blocks.forEach(b => { b.wasPanicking = true; }); // they're all doomed now
             this.isHanging = false; this.hanging = null;
             this.targetCameraYOffset = 0;        // pan the camera down to the ground
+            this.targetPivotY = this.config.camera.maxPivotY; // lower the crane back down
+            this.autoScrollOffset = 0; // reset auto-scroll
             this.junk.forEach(j => Composite.remove(this.engine.world, j)); this.junk = [];
             // freeze everything so the chain is fully controlled (no chaotic physics)
             this.blocks.forEach(b => { if (!b.isStatic) Body.setStatic(b, true); });
@@ -439,6 +441,7 @@
             const dm = this.config.demolition;
             this.swingTime += this.config.camera.swingTimeStep;
             this.cameraYOffset += (this.targetCameraYOffset - this.cameraYOffset) * this.config.camera.cameraLerp;
+            this.pivotY += (this.targetPivotY - this.pivotY) * this.config.camera.pivotLerp;
             if (this._toast) { this._toast.t--; if (this._toast.t <= 0) this._toast = null; }
             const FALL_FRAMES = dm.fallFrames;
 
