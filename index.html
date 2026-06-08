@@ -460,7 +460,7 @@
             this.currentPlayerIndex = 0;
             this.accent = accent || '#3b82f6';
 
-            this.engine = Engine.create({ gravity: { y: 1.0 } });   // gentle fall so the drop isn't too fast
+            this.engine = Engine.create({ gravity: { y: 1.2 } });
             this.ground = Bodies.rectangle(CANVAS_WIDTH / 2, PLATFORM_Y + 15, CANVAS_WIDTH - 120, 30, { isStatic: true, friction: 1.0 });
             Composite.add(this.engine.world, [this.ground]);
 
@@ -518,13 +518,13 @@
             this.isHanging = false;
             this.hanging.isSensor = false;
             Composite.add(this.engine.world, this.hanging);
-            const swingSpeed = 1.35 + this.successfulDrops * 0.04;
+            const swingSpeed = 1.75 + this.successfulDrops * 0.04;
             const thetaMax = 0.52;
             const theta = thetaMax * Math.sin(this.swingTime * swingSpeed);
             const thetaPrime = thetaMax * swingSpeed * Math.cos(this.swingTime * swingSpeed);
             let vx = ropeLength * thetaPrime * Math.cos(theta) * 0.006;
             vx = Math.max(-1.2, Math.min(1.2, vx));
-            Body.setVelocity(this.hanging, { x: vx, y: 1.3 });
+            Body.setVelocity(this.hanging, { x: vx, y: 1.6 });
             this.blocks.push(this.hanging);
             const dropped = this.hanging;
             this.hanging = null;
@@ -589,10 +589,13 @@
                 if (offset > 35) { playSound('wobble'); this.toast('WOBBLY', '#d97706'); block.eyeState = 'panicked'; }
             }
 
-            // Every 50 m (5 blocks) lock the whole tower into a solid foundation.
+            // Every 50 m (5 blocks): lock the tower and build a wooden scaffold "new level" -- a
+            // wide plank on criss-cross stilts that bridges back over the tower, so you can keep
+            // building even when the top house is hanging off the edge.
             if (this.successfulDrops % 5 === 0) {
                 this.blocks.forEach(b => { if (!b.isStatic) Body.setStatic(b, true); });
-                this.toast('FOUNDATION LOCKED', '#6366f1'); playSound('spell');
+                this.addScaffold();
+                this.toast('NEW LEVEL!', '#6366f1'); playSound('spell');
             }
 
             // Battle: pull far enough ahead and your rival is out.
@@ -715,6 +718,30 @@
         };
 
         Lane.prototype.toast = function (text, color) { this._toast = { text: text, color: color || '#3b82f6', t: 90 }; };
+
+        // Build a wooden scaffold platform on top of the current tower: a wide plank raised on
+        // criss-cross stilts, nudged back toward the lane centre so it bridges over an
+        // overhanging top house and gives the next level a stable, forgiving base.
+        Lane.prototype.addScaffold = function () {
+            let top = null, topY = Infinity;
+            this.blocks.forEach(b => { if (b.position.y < topY) { topY = b.position.y; top = b; } });
+            if (!top) return;
+            const tw = top.boxWidth || DEFAULT_BOX_WIDTH, th = top.boxHeight || DEFAULT_BOX_HEIGHT;
+            const sw = Math.max(DEFAULT_BOX_WIDTH * 1.25, tw * 1.15), sh = 16, gap = 26;
+            const topEdge = top.position.y - th / 2;
+            // bias the new level back toward the lane centre (where the crane drops) so the bridge
+            // re-centres the tower; the legs then slant out to the off-centre house below.
+            let sx = top.position.x + (CANVAS_WIDTH / 2 - top.position.x) * 0.7;
+            sx = Math.max(sw / 2 + 8, Math.min(CANVAS_WIDTH - sw / 2 - 8, sx));
+            const sy = topEdge - gap - sh / 2;
+            const beam = Bodies.rectangle(sx, sy, sw, sh, { isStatic: true, friction: 1.0 });
+            beam.boxWidth = sw; beam.boxHeight = sh; beam.isScaffold = true;
+            beam.legY = gap + sh / 2;                 // local y of the support's top
+            beam.supDx = top.position.x - sx;         // horizontal offset to the support house
+            beam.supW = tw;
+            Composite.add(this.engine.world, beam);
+            this.blocks.push(beam);
+        };
 
         Lane.prototype.spawnParticles = function (x, y, count) {
             for (let i = 0; i < count; i++) this.particles.push({
@@ -944,6 +971,26 @@
             const type = block.houseType || 0;
             const dark = '#3f2a18';
             ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+
+            // wooden scaffold "new level" -- a plank on criss-cross stilts bridging to the tower
+            if (block.isScaffold) {
+                const ly = block.legY || 26, dx = block.supDx || 0, sw2 = block.supW || DEFAULT_BOX_WIDTH, beamB = h / 2;
+                ctx.strokeStyle = '#7a4a1e'; ctx.lineWidth = Math.max(3, w * 0.028); ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(-w / 2 + 5, beamB); ctx.lineTo(dx - sw2 / 2 + 8, ly);     // outer legs
+                ctx.moveTo(w / 2 - 5, beamB); ctx.lineTo(dx + sw2 / 2 - 8, ly);
+                ctx.moveTo(-w / 2 + 5, beamB); ctx.lineTo(dx + sw2 * 0.18, ly);      // criss-cross
+                ctx.moveTo(w / 2 - 5, beamB); ctx.lineTo(dx - sw2 * 0.18, ly);
+                const midY = beamB + (ly - beamB) * 0.55;                            // a horizontal tie
+                ctx.moveTo(dx - sw2 / 2 + 8, midY); ctx.lineTo(dx + sw2 / 2 - 8, midY);
+                ctx.stroke();
+                ctx.fillStyle = '#b5803a'; ctx.strokeStyle = '#5c3a13'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 3); ctx.fill(); ctx.stroke();
+                ctx.strokeStyle = 'rgba(92,58,19,0.45)'; ctx.lineWidth = 1.5;
+                for (let px = -w / 2 + 9; px < w / 2 - 4; px += 14) { ctx.beginPath(); ctx.moveTo(px, -h / 2 + 2); ctx.lineTo(px, h / 2 - 2); ctx.stroke(); }
+                ctx.restore();
+                return;
+            }
 
             // a sabotaged "junk house": a heavy dark metal block stamped with the saboteur's name
             if (block.isJunkHouse) {
@@ -1233,7 +1280,7 @@
             ctx.strokeStyle = '#475569'; ctx.lineWidth = 14;
             ctx.beginPath(); ctx.moveTo(30, this.pivotY - 20); ctx.lineTo(CANVAS_WIDTH - 30, this.pivotY - 20); ctx.stroke();
 
-            const swingSpeed = 1.35 + this.successfulDrops * 0.04, thetaMax = 0.52;
+            const swingSpeed = 1.75 + this.successfulDrops * 0.04, thetaMax = 0.52;
             const windAngle = this.currentWind * 0.05;
             const swingAngle = thetaMax * Math.sin(this.swingTime * swingSpeed) + windAngle;
             const bx = pivotX + ropeLength * Math.sin(swingAngle);
