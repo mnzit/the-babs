@@ -834,13 +834,21 @@
             const face = (sp) => (Math.cos(t * sp + ph) >= 0 ? 1 : -1);
 
             if (type === 2) {
-                // ROOFTOP: walks on the roof; squished flat if a house sits on top
+                // ROOFTOP: walks on the roof until a house actually lands on him -> a quick squish,
+                // then he's gone for good.
                 ctx.fillStyle = st.trim; ctx.strokeStyle = dark; ctx.lineWidth = 2.5;   // little chimney
                 ctx.beginPath(); ctx.roundRect(w * 0.3, -h / 2 - 8 * k, 5 * k, 8 * k, 1); ctx.fill(); ctx.stroke();
-                if (!isTop) {
-                    this.drawGuy(0, -h / 2 + 15 * k, k * 0.85, 'panic', t, ph, color, 1, 0.32);  // squished flat on the wall
-                } else {
-                    this.drawGuy(walk(0.9) * w * 0.3, -h / 2, k * 0.9, emotion, t, ph, color, face(0.9), 1);
+                if (!block.guyGone) {
+                    if (isTop) {
+                        block.squishT = 0;
+                        this.drawGuy(walk(0.9) * w * 0.3, -h / 2, k * 0.9, emotion, t, ph, color, face(0.9), 1);
+                    } else {
+                        const dur = 16;
+                        block.squishT = (block.squishT || 0) + 1;
+                        const sq = Math.max(0.06, 1 - block.squishT / dur);   // flatten 1 -> 0
+                        this.drawGuy(0, -h / 2 + 13 * k, k * 0.85, 'panic', t, ph, color, 1, sq);
+                        if (block.squishT >= dur) block.guyGone = true;       // squished flat -> gone
+                    }
                 }
             } else if (type === 1) {
                 // BALCONY: walks on a ledge behind a railing
@@ -971,9 +979,10 @@
         };
 
         Lane.prototype.drawBlocks = function () {
-            // find the top house so rooftop residents know if they're covered (squished) or free
+            // find the top SETTLED house so rooftop residents only get squished once a house
+            // actually lands on them (the still-falling block is excluded).
             let topBlock = null, topY = Infinity;
-            this.blocks.forEach(b => { if (b.position.y < topY) { topY = b.position.y; topBlock = b; } });
+            this.blocks.forEach(b => { if (b === this.pending) return; if (b.position.y < topY) { topY = b.position.y; topBlock = b; } });
             this.blocks.forEach(b => {
                 const panic = this.demolishing || Math.abs(b.angle) > 0.22 || Math.abs(b.angularSpeed || 0) > 0.06;
                 // Scream only on a real "about to fall" tilt (or demolition), edge-triggered.
