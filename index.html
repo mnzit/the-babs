@@ -32,6 +32,8 @@
     <audio id="sfx-panic" preload="auto"><source src="assets/panic.mp3" type="audio/mpeg"></audio>
     <audio id="sfx-crush" preload="auto"><source src="assets/crush.mp3" type="audio/mpeg"></audio>
     <audio id="sfx-chime" preload="auto"><source src="assets/chime.mp3" type="audio/mpeg"></audio>
+    <audio id="sfx-wind" preload="auto"><source src="assets/wind.mp3" type="audio/mpeg"></audio>
+    <audio id="sfx-explode" preload="auto"><source src="assets/explode.mp3" type="audio/mpeg"></audio>
 
     <script>
         // Fire a one-shot sound effect element at a given volume.
@@ -45,6 +47,21 @@
         function playPanic() { if (panicCooldown > 0) return; panicCooldown = 40; playSfx('sfx-panic', 0.5); }
         function playCrush() { playSfx('sfx-crush', 0.6); }   // building crashing down
         function playChime() { playSfx('sfx-chime', 0.5); }   // perfect drop
+        function playWind() { playSfx('sfx-wind', 0.5); }     // a gust is coming
+        function playExplode() { playSfx('sfx-explode', 0.6); } // zap blows a house apart
+
+        // Flash an on-screen alert that wind is coming, and which way.
+        let windAlertTimer = null;
+        function announceWind(w) {
+            const el = document.getElementById('wind-alert');
+            if (!el) return;
+            const right = w > 0;
+            el.innerHTML = (right ? '' : '&larr; ') + 'WINDY' + (right ? ' &rarr;' : '');
+            el.className = 'absolute top-[96px] sm:top-[116px] left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full text-white font-black bubbly-font text-sm sm:text-base shadow-lg pointer-events-none ' + (right ? 'bg-cyan-500/90' : 'bg-indigo-500/90');
+            el.style.opacity = '1';
+            if (windAlertTimer) clearTimeout(windAlertTimer);
+            windAlertTimer = setTimeout(function () { el.style.opacity = '0'; }, 2600);
+        }
     </script>
 
     <script>
@@ -176,6 +193,9 @@
             <span class="text-slate-300 hidden sm:inline">-</span>
             <p id="ctrl-turn-prompt" class="text-xs text-slate-500 truncate hidden sm:block">Tap anywhere to drop!</p>
         </div>
+
+        <!-- WIND ALERT (flashes when a gust is coming) -->
+        <div id="wind-alert" class="absolute top-[96px] sm:top-[116px] left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full text-white font-black bubbly-font text-sm shadow-lg pointer-events-none opacity-0 transition-opacity duration-300 bg-cyan-500/90">WINDY</div>
 
         <!-- BOTTOM CONTROLS: SOLO / CO-OP -->
         <div id="solo-controls" class="absolute bottom-0 inset-x-0 z-20 pb-4 pt-10 flex justify-center pointer-events-none bg-gradient-to-t from-sky-900/15 to-transparent">
@@ -635,11 +655,33 @@
                 target = this.hanging; Composite.remove(this.engine.world, this.hanging);
                 this.hanging = null; this.isHanging = false;
             }
-            if (target) { this.spawnDebris(target.position.x, target.position.y, target.boxWidth || DEFAULT_BOX_WIDTH); playSound('collapse'); }
+            if (target) { this.spawnExplosion(target.position.x, target.position.y, target.boxWidth || DEFAULT_BOX_WIDTH); playExplode(); }
             this.flash = 1;
-            this.toast((byName || 'Rival') + ' ZAPPED your house!', '#a855f7');
+            this.toast((byName || 'Rival') + ' BLEW UP your house!', '#a855f7');
             const self = this;
             setTimeout(function () { if (matchActive && self.alive && !self.hanging && !self.pending) self.spawnHanging(); }, 700);
+        };
+
+        // A big burst: house chunks fly out in every direction + a bright flash.
+        Lane.prototype.spawnExplosion = function (x, y, size) {
+            const colors = ['#d97706', '#fef3c7', '#78350f', '#3b82f6', '#fbbf24', '#f97316', '#ef4444'];
+            for (let i = 0; i < 28; i++) {
+                const a = Math.random() * Math.PI * 2, sp = 3 + Math.random() * 8;
+                this.particles.push({
+                    x: x + (Math.random() - 0.5) * size * 0.4, y: y + (Math.random() - 0.5) * size * 0.4,
+                    vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2,
+                    size: Math.random() * 11 + 5, color: colors[(Math.random() * colors.length) | 0],
+                    life: 1.0, decay: Math.random() * 0.01 + 0.005, gravity: true, square: true
+                });
+            }
+            for (let i = 0; i < 8; i++) {           // bright fireball puffs
+                const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 4;
+                this.particles.push({
+                    x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    size: Math.random() * 18 + 12, color: i % 2 ? 'rgba(255,224,130,0.85)' : 'rgba(255,140,60,0.8)',
+                    life: 1.0, decay: 0.05
+                });
+            }
         };
 
         Lane.prototype.toast = function (text, color) { this._toast = { text: text, color: color || '#3b82f6', t: 90 }; };
@@ -657,7 +699,7 @@
         Lane.prototype.updatePhysics = function () {
             // gentle wind push on the falling house so it drifts left/right on the way down
             if (this.pending && !this.pending.isStatic) {
-                Body.applyForce(this.pending, this.pending.position, { x: this.currentWind * 0.00007 * this.pending.mass, y: 0 });
+                Body.applyForce(this.pending, this.pending.position, { x: this.currentWind * 0.00004 * this.pending.mass, y: 0 });
             }
             Engine.update(this.engine, 1000 / 60);
             this.checkSettle();
@@ -1110,7 +1152,7 @@
             ctx.beginPath(); ctx.moveTo(30, this.pivotY - 20); ctx.lineTo(CANVAS_WIDTH - 30, this.pivotY - 20); ctx.stroke();
 
             const swingSpeed = 1.35 + this.successfulDrops * 0.04, thetaMax = 0.52;
-            const windAngle = this.currentWind * 0.08;
+            const windAngle = this.currentWind * 0.05;
             const swingAngle = thetaMax * Math.sin(this.swingTime * swingSpeed) + windAngle;
             const bx = pivotX + ropeLength * Math.sin(swingAngle);
             const by = this.pivotY + ropeLength * Math.cos(swingAngle);
@@ -1292,11 +1334,26 @@
             if (typeof broadcastToControllers === 'function') broadcastToControllers({ a: 'playing' });
             lanes.forEach(l => { if (l.player().isAI) l.runAI(); });
 
-            if (windTimer) clearInterval(windTimer);
-            windTimer = setInterval(function () {
-                if (!matchActive) return;
-                lanes.forEach(l => { l.targetWind = Math.random() > 0.6 ? (Math.random() - 0.5) * 3 : 0; });
-            }, 5000);
+            if (windTimer) clearTimeout(windTimer);
+            gameWind = 0; lanes.forEach(l => { l.targetWind = 0; });
+            windTimer = setTimeout(scheduleWind, 3500 + Math.random() * 3000);
+        }
+
+        // One shared, random wind for the whole arena. When a gust starts it warns the player
+        // (on screen + sound) and pushes every falling house that way; then it calms down again.
+        let gameWind = 0;
+        function scheduleWind() {
+            if (!matchActive) return;
+            if (Math.random() < 0.6) {                     // a gust
+                const dir = Math.random() < 0.5 ? -1 : 1;
+                gameWind = dir * (0.7 + Math.random() * 0.6);   // 0.7 - 1.3
+                announceWind(gameWind);
+                playWind();
+            } else {
+                gameWind = 0;                              // calm
+            }
+            lanes.forEach(l => { l.targetWind = gameWind; });
+            windTimer = setTimeout(scheduleWind, 4500 + Math.random() * 4000);
         }
 
         // combo: a 3-perfect streak sabotages a random RIVAL tower (battle only). One of three:
@@ -1307,10 +1364,8 @@
             if (!rivals.length) return;
             const enemy = rivals[Math.floor(Math.random() * rivals.length)];
             const by = lane.player().name;
-            const r = Math.random();
-            if (r < 0.34) enemy.spikeWind(by);
-            else if (r < 0.67) enemy.dropJunk(by);
-            else enemy.zapHouse(by);
+            // wind is now its own random event; combos either drop a junk house or zap theirs
+            if (Math.random() < 0.5) enemy.dropJunk(by); else enemy.zapHouse(by);
         }
 
         // Battle: any tower that falls LEAD_HOUSES (5 = 50 m) behind the leader is knocked out.
