@@ -28,6 +28,20 @@
 
     <!-- Looping background music (kept low) -->
     <audio id="bgm" loop preload="auto"><source src="assets/theme.mp3" type="audio/mpeg"></audio>
+    <!-- Panic scream when a resident's house is about to fall -->
+    <audio id="sfx-panic" preload="auto"><source src="assets/panic.mp3" type="audio/mpeg"></audio>
+
+    <script>
+        // Play the panic scream, throttled so a whole tower of panicking residents doesn't overlap.
+        let panicCooldown = 0;
+        function playPanic() {
+            if (panicCooldown > 0) return;
+            panicCooldown = 40; // ~0.7s between screams
+            const a = document.getElementById('sfx-panic');
+            if (!a) return;
+            try { a.currentTime = 0; a.volume = 0.5; const p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+        }
+    </script>
 
     <script>
         // Start the looping theme quietly (called from the START button, which is a user gesture
@@ -650,6 +664,8 @@
         Lane.prototype.startDemolition = function () {
             this.demolishing = true;
             this.demoState = 'intro'; this._wait = 0;
+            playPanic();
+            this.blocks.forEach(b => { b.wasPanicking = true; }); // they're all doomed now
             this.isHanging = false; this.hanging = null;
             this.targetCameraYOffset = 0;        // pan the camera down to the ground
             this.junk.forEach(j => Composite.remove(this.engine.world, j)); this.junk = [];
@@ -954,6 +970,10 @@
             this.blocks.forEach(b => { if (b.position.y < topY) { topY = b.position.y; topBlock = b; } });
             this.blocks.forEach(b => {
                 const panic = this.demolishing || Math.abs(b.angle) > 0.22 || Math.abs(b.angularSpeed || 0) > 0.06;
+                // Scream only on a real "about to fall" tilt (or demolition), edge-triggered.
+                const screamWorthy = this.demolishing || Math.abs(b.angle) > 0.3;
+                if (screamWorthy && !b.wasPanicking) playPanic();
+                b.wasPanicking = screamWorthy;
                 this.drawHouse(b, panic ? 'panic' : 'idle', b === topBlock);
                 if (b.starSparkles) this.drawSparkles(b.position.x, b.position.y);
             });
@@ -1263,6 +1283,7 @@
         }
 
         function gameLoop() {
+            if (panicCooldown > 0) panicCooldown--;
             lanes.forEach(l => {
                 if (matchActive && l.alive) l.updatePhysics();
                 else if (l.demolishing) l.updateDemolition();
