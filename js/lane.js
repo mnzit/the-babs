@@ -236,6 +236,17 @@
             }
             const live = this.blocks.filter(b => !b.isStatic);
             if (live.length >= cc.tiltCount && live.filter(b => Math.abs(b.angle) > cc.tiltAngle).length >= cc.tiltCount) { collapse = true; who = this.player(); }
+            
+            if (this.blocks.length > 2) {
+                const screenBottom = CANVAS_HEIGHT - this.cameraYOffset;
+                let top = PLATFORM_Y;
+                this.blocks.forEach(b => { if (b === this.pending) return; const t = b.position.y - (b.boxHeight || DEFAULT_BOX_HEIGHT) / 2; if (t < top) top = t; });
+                if (top > screenBottom + 50) {
+                    collapse = true; who = this.player();
+                    if (!this.tooSlowToast) { this.toast('TOO SLOW!', '#ef4444'); this.tooSlowToast = true; }
+                }
+            }
+            
             if (collapse) { this.bus.emit('lane:collapsed', { lane: this, who: who }); endLane(this, who); }
         };
 
@@ -372,8 +383,15 @@
 
             let top = PLATFORM_Y;
             this.blocks.forEach(b => { if (b === this.pending) return; const t = b.position.y - (b.boxHeight || DEFAULT_BOX_HEIGHT) / 2; if (t < top) top = t; });
+            
+            if (this.alive && this.blocks.length > 1) {
+                this.autoScrollOffset = (this.autoScrollOffset || 0) + 0.35; // auto-scroll speed
+            } else {
+                this.autoScrollOffset = 0;
+            }
+            
             this.targetPivotY = Math.min(cam.maxPivotY, top - HANG_OFFSET);
-            this.targetCameraYOffset = Math.max(0, cam.restAnchor - top);
+            this.targetCameraYOffset = Math.max(this.autoScrollOffset, Math.max(0, cam.restAnchor - top));
             this.pivotY += (this.targetPivotY - this.pivotY) * cam.pivotLerp;
             this.cameraYOffset += (this.targetCameraYOffset - this.cameraYOffset) * cam.cameraLerp;
             if (this.flash > 0) this.flash -= cam.flashDecay;
