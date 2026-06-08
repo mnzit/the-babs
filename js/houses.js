@@ -102,13 +102,17 @@ Babs.Houses.register({
           chars.drawGuy(walk(0.9) * w * 0.3, -h / 2, k * 0.9, emotion, t, ph, color, face(0.9), 1);
         }
       } else {
-        const dur = 26;
-        block.squishT = (block.squishT || 0) + 1;
-        const p = Math.min(1, block.squishT / dur);
-        const sq = 1 - p * 0.9;                     // flatten 1 -> 0.1
+        const guyHeight = 22 * k;
+        if (c.clearance != null) {
+            block.minClearance = Math.min(block.minClearance ?? 1000, c.clearance);
+        }
+        let sq = 1;
+        if (block.minClearance < guyHeight) {
+            sq = Math.max(0.05, block.minClearance / guyHeight);
+        }
         const fy = -h / 2;                          // keep feet planted on the roof
         chars.drawGuy(0, fy, k * 0.85, 'panic', t, ph, color, 1, sq);
-        if (block.squishT >= dur) block.guyGone = true;   // squished flat -> gone
+        if (sq <= 0.1) block.guyGone = true;   // squished flat -> gone
       }
     }
   }

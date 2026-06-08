@@ -114,7 +114,7 @@ Babs.LaneRenderer = function (lane) {
             ctx.fillStyle = '#fbbf24'; ctx.fillRect(pos.x - (CANVAS_WIDTH - 120) / 2 + 10, pos.y - 11, CANVAS_WIDTH - 140, 8);
         };
 
-        Babs.LaneRenderer.prototype.drawHouse = function (block, emotion, isTop) {
+        Babs.LaneRenderer.prototype.drawHouse = function (block, emotion, isTop, nextBlock) {
             const ctx = this.ctx;
             const x = block.position.x, y = block.position.y, angle = block.angle;
             const w = block.boxWidth || DEFAULT_BOX_WIDTH, h = block.boxHeight || DEFAULT_BOX_HEIGHT;
@@ -174,11 +174,14 @@ Babs.LaneRenderer = function (lane) {
             const face = (sp) => (Math.cos(t * sp + ph) >= 0 ? 1 : -1);
 
             // Type-specific decoration + resident(s) come from the house-type strategy.
-            this.lane.houses.get(type).draw({
-                ctx: ctx, w: w, h: h, k: k, t: t, ph: ph, color: color, st: st, dark: dark,
+            const c = {
+                ctx: ctx, w: w, h: h, k: k, st: st, dark: dark, t: t, ph: ph, color: color,
                 emotion: emotion, isTop: isTop, walk: walk, face: face,
-                block: block, chars: this
-            });
+                block: block, nextBlock: nextBlock, 
+                clearance: nextBlock ? ((y - h/2) - (nextBlock.position.y + (nextBlock.boxHeight || h)/2)) : 1000, 
+                chars: this
+            };
+            this.lane.houses.get(type).draw(c);
 
             if (block.sabotageActive === 'ice') { ctx.fillStyle = 'rgba(186,230,253,0.45)'; ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 12); ctx.fill(); }
             ctx.restore();
@@ -299,13 +302,14 @@ Babs.LaneRenderer = function (lane) {
             // actually lands on them (the still-falling block is excluded).
             let topBlock = null, topY = Infinity;
             this.lane.blocks.forEach(b => { if (b === this.lane.pending) return; if (b.position.y < topY) { topY = b.position.y; topBlock = b; } });
-            this.lane.blocks.forEach(b => {
+            this.lane.blocks.forEach((b, i) => {
                 const panic = this.lane.demolishing || Math.abs(b.angle) > 0.22 || Math.abs(b.angularSpeed || 0) > 0.06;
                 // Scream only on a real "about to fall" tilt (or demolition), edge-triggered.
                 const screamWorthy = this.lane.demolishing || Math.abs(b.angle) > 0.3;
                 if (screamWorthy && !b.wasPanicking) Babs.bus.emit('lane:panic', { lane: this, block: b });
                 b.wasPanicking = screamWorthy;
-                this.drawHouse(b, panic ? 'panic' : 'idle', b === topBlock);
+                const nextBlock = this.lane.blocks[i + 1] || null;
+                this.drawHouse(b, panic ? 'panic' : 'idle', b === topBlock, nextBlock);
                 if (b.starSparkles) this.drawSparkles(b.position.x, b.position.y);
             });
         };
