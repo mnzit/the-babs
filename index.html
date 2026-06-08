@@ -376,7 +376,7 @@
                     ${players.length > 1 ? `<button onclick="removePlayer(${idx})" class="text-xs text-rose-500 hover:text-rose-600 font-bold px-1 shrink-0">remove</button>` : ''}`;
                 c.appendChild(row);
             });
-            const maxPlayers = 4;
+            const maxPlayers = gameMode === 'selfish' ? 1 : 4;   // solo is always a single player
             if (players.length < maxPlayers) {
                 const add = document.createElement('button');
                 add.className = 'w-full flex items-center justify-center p-2 rounded-xl border border-dashed border-indigo-500/40 hover:bg-indigo-50 text-indigo-500 text-xs font-bold transition-all';
@@ -392,7 +392,7 @@
         function toggleAI(idx) { playSound('click'); players[idx].isAI = !players[idx].isAI; updateLobbyUI(); }
         function removePlayer(idx) { playSound('click'); players.splice(idx, 1); updateLobbyUI(); }
         function addPlayer() {
-            const max = gameMode === 'battle' ? 2 : 4;
+            const max = gameMode === 'selfish' ? 1 : 4;
             if (players.length >= max) return;
             playSound('click');
             const i = players.length;
@@ -412,7 +412,7 @@
             this.currentPlayerIndex = 0;
             this.accent = accent || '#3b82f6';
 
-            this.engine = Engine.create({ gravity: { y: 1.4 } });
+            this.engine = Engine.create({ gravity: { y: 1.0 } });   // gentle fall so the drop isn't too fast
             this.ground = Bodies.rectangle(CANVAS_WIDTH / 2, PLATFORM_Y + 15, CANVAS_WIDTH - 120, 30, { isStatic: true, friction: 1.0 });
             Composite.add(this.engine.world, [this.ground]);
 
@@ -476,7 +476,7 @@
             const thetaPrime = thetaMax * swingSpeed * Math.cos(this.swingTime * swingSpeed);
             let vx = ropeLength * thetaPrime * Math.cos(theta) * 0.006;
             vx = Math.max(-1.2, Math.min(1.2, vx));
-            Body.setVelocity(this.hanging, { x: vx, y: 2.0 });
+            Body.setVelocity(this.hanging, { x: vx, y: 1.3 });
             this.blocks.push(this.hanging);
             const dropped = this.hanging;
             this.hanging = null;
