@@ -537,10 +537,12 @@
             this.pendingFrames++;
             const b = this.pending;
             const speed = Math.hypot(b.velocity.x, b.velocity.y);
-            const fellOff = b.position.y > PLATFORM_Y + 120 || b.position.x < -120 || b.position.x > CANVAS_WIDTH + 120;
+            // the moment the house drops past the bottom of the visible screen, it's a miss
+            const screenBottom = CANVAS_HEIGHT - this.cameraYOffset;
+            const offScreen = b.position.y > screenBottom || b.position.x < -120 || b.position.x > CANVAS_WIDTH + 120;
             const settled = this.pendingFrames > 25 && speed < 0.4;
             const timedOut = this.pendingFrames > 260;
-            if (fellOff || settled || timedOut) { const blk = this.pending; this.pending = null; this.evaluate(blk); }
+            if (offScreen || settled || timedOut) { const blk = this.pending; this.pending = null; if (offScreen) blk._fellOff = true; this.evaluate(blk); }
         };
 
         Lane.prototype.evaluate = function (block) {
@@ -553,7 +555,7 @@
             const perfect = offset < (isFirst ? 16 : supportW * 0.13);
             const maxStackOffset = isFirst ? 150 : supportW * 0.7;
             const blockH = block.boxHeight || DEFAULT_BOX_HEIGHT;
-            const missedEntirely = block.position.y > PLATFORM_Y + 100;
+            const missedEntirely = block._fellOff || block.position.y > PLATFORM_Y + 100;
             const notOnTop = supportBlock && block.position.y > supportBlock.position.y - blockH * 0.4;
 
             if (missedEntirely || offset > maxStackOffset || notOnTop) {
