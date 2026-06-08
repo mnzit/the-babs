@@ -603,7 +603,7 @@
 
         // sabotage: drop a small junk house onto this lane's tower
         Lane.prototype.dropJunk = function () {
-            const s = shrinkScale(this.successfulDrops) * 0.5;
+            const s = shrinkScale(this.successfulDrops) * 0.85;   // a chunky sabotage block
             const w = DEFAULT_BOX_WIDTH * s, h = DEFAULT_BOX_HEIGHT * s;
             const x = CANVAS_WIDTH / 2 + (Math.sin(this.swingTime * 7) * 60);
             const j = Bodies.rectangle(x, this.pivotY + 60, w, h, { friction: 0.9, frictionStatic: 1.0, frictionAir: 0.02, restitution: 0 });
