@@ -347,9 +347,25 @@
 
         function gameLoop() {
             if (panicCooldown > 0) panicCooldown--;
+            
+            let globalMaxCamY = 0;
             lanes.forEach(l => {
-                if (matchActive && l.alive) l.updatePhysics();
+                if (matchActive && l.alive) {
+                    l.updatePhysics();
+                    if (l.targetCameraYOffset > globalMaxCamY) {
+                        globalMaxCamY = l.targetCameraYOffset;
+                    }
+                }
                 else if (l.demolishing) l.updateDemolition();
+            });
+            
+            if (matchActive && globalMaxCamY > 0) {
+                lanes.forEach(l => {
+                    if (l.alive) l.targetCameraYOffset = globalMaxCamY;
+                });
+            }
+            
+            lanes.forEach(l => {
                 l.render();
             });
             // once every lane has finished crumbling, reveal the game-over screen
