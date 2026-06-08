@@ -295,20 +295,40 @@ Babs.LaneRenderer = function (lane) {
             }
             
             // Face
-            const ey = 0, eR = (isScared || hasParachute ? 1.8 : 1.4) * s;
-            ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 0.5 * s;
-            ctx.beginPath(); ctx.arc(-headR * 0.4, ey, eR, 0, Math.PI * 2); ctx.arc(headR * 0.4, ey, eR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            const ey = 0.5 * s;
+            const eW = (isScared || hasParachute ? 1.6 : 1.3) * s;
+            const eH = (isScared || hasParachute ? 2.2 : 1.8) * s;
             
+            // Blush
+            ctx.fillStyle = 'rgba(255, 100, 100, 0.4)';
+            ctx.beginPath(); ctx.ellipse(-headR * 0.55, ey + 1.5 * s, 1.5 * s, 0.8 * s, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse( headR * 0.55, ey + 1.5 * s, 1.5 * s, 0.8 * s, 0, 0, Math.PI * 2); ctx.fill();
+
+            // Sclera (white part)
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.ellipse(-headR * 0.35, ey, eW, eH, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse( headR * 0.35, ey, eW, eH, 0, 0, Math.PI * 2); ctx.fill();
+            
+            // Pupil
             ctx.fillStyle = dark; 
-            const pupilYOffset = (isScared || hasParachute) ? -eR * 0.2 : 0;
-            ctx.beginPath(); ctx.arc(-headR * 0.4, ey + pupilYOffset, eR * 0.45, 0, Math.PI * 2); ctx.arc(headR * 0.4, ey + pupilYOffset, eR * 0.45, 0, Math.PI * 2); ctx.fill();
+            const pupilYOffset = (isScared || hasParachute) ? -eH * 0.1 : 0;
+            ctx.beginPath(); ctx.ellipse(-headR * 0.35, ey + pupilYOffset, eW * 0.7, eH * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse( headR * 0.35, ey + pupilYOffset, eW * 0.7, eH * 0.7, 0, 0, Math.PI * 2); ctx.fill();
             
+            // Eye highlight
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(-headR * 0.35 + 0.3 * s, ey + pupilYOffset - 0.4 * s, eW * 0.25, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc( headR * 0.35 + 0.3 * s, ey + pupilYOffset - 0.4 * s, eW * 0.25, 0, Math.PI * 2); ctx.fill();
+
+            // Mouth
+            ctx.strokeStyle = dark; ctx.lineWidth = 1.2 * s;
             if (isScared) {
-                 ctx.beginPath(); ctx.arc(0, headR * 0.4, 1.8 * s, 0, Math.PI * 2); ctx.fill();
+                 ctx.fillStyle = dark;
+                 ctx.beginPath(); ctx.ellipse(0, headR * 0.5, 1.2 * s, 1.8 * s, 0, 0, Math.PI * 2); ctx.fill();
             } else if (hasParachute || emotion === 'happy') {
-                 ctx.beginPath(); ctx.arc(0, headR * 0.25, 1.8 * s, 0, Math.PI); ctx.stroke();
+                 ctx.beginPath(); ctx.arc(0, headR * 0.3, 1.5 * s, 0, Math.PI); ctx.stroke();
             } else {
-                ctx.strokeStyle = dark; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(-1.5 * s, headR * 0.4); ctx.lineTo(1.5 * s, headR * 0.4); ctx.stroke();
+                 ctx.beginPath(); ctx.arc(0, headR * 0.3, 1.2 * s, 0, Math.PI); ctx.stroke();
             }
             ctx.restore(); // end head
             ctx.restore(); // end global
@@ -344,18 +364,38 @@ Babs.LaneRenderer = function (lane) {
             rr(-headR - 1.5 * s, -headR * 0.5 - 1.5 * s, headR * 2 + 3 * s, 2.5 * s, 1 * s); ctx.fill(); ctx.stroke();
             
             // Face
-            const ey = 0, eR = (isScared ? 1.8 : 1.4) * s;
-            ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 0.5 * s;
-            ctx.beginPath(); ctx.arc(-headR * 0.4, ey, eR, 0, Math.PI * 2); ctx.arc(headR * 0.4, ey, eR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            const ey = 0.5 * s;
+            const eW = (isScared ? 1.6 : 1.3) * s;
+            const eH = (isScared ? 2.2 : 1.8) * s;
             
+            // Blush
+            ctx.fillStyle = 'rgba(255, 100, 100, 0.4)';
+            ctx.beginPath(); ctx.ellipse(-headR * 0.55, ey + 1.5 * s, 1.5 * s, 0.8 * s, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse( headR * 0.55, ey + 1.5 * s, 1.5 * s, 0.8 * s, 0, 0, Math.PI * 2); ctx.fill();
+
+            // Sclera
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.ellipse(-headR * 0.35, ey, eW, eH, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse( headR * 0.35, ey, eW, eH, 0, 0, Math.PI * 2); ctx.fill();
+            
+            // Pupil
             ctx.fillStyle = dark; 
-            const pupilYOffset = isScared ? -eR * 0.2 : 0;
-            ctx.beginPath(); ctx.arc(-headR * 0.4, ey + pupilYOffset, eR * 0.45, 0, Math.PI * 2); ctx.arc(headR * 0.4, ey + pupilYOffset, eR * 0.45, 0, Math.PI * 2); ctx.fill();
+            const pupilYOffset = isScared ? -eH * 0.1 : 0;
+            ctx.beginPath(); ctx.ellipse(-headR * 0.35, ey + pupilYOffset, eW * 0.7, eH * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse( headR * 0.35, ey + pupilYOffset, eW * 0.7, eH * 0.7, 0, 0, Math.PI * 2); ctx.fill();
             
+            // Highlight
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(-headR * 0.35 + 0.3 * s, ey + pupilYOffset - 0.4 * s, eW * 0.25, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc( headR * 0.35 + 0.3 * s, ey + pupilYOffset - 0.4 * s, eW * 0.25, 0, Math.PI * 2); ctx.fill();
+
+            // Mouth
+            ctx.strokeStyle = dark; ctx.lineWidth = 1.2 * s;
             if (isScared) {
-                 ctx.beginPath(); ctx.arc(0, headR * 0.4, 1.8 * s, 0, Math.PI * 2); ctx.fill();
+                 ctx.fillStyle = dark;
+                 ctx.beginPath(); ctx.ellipse(0, headR * 0.5, 1.2 * s, 1.8 * s, 0, 0, Math.PI * 2); ctx.fill();
             } else {
-                ctx.strokeStyle = dark; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(-1.5 * s, headR * 0.4); ctx.lineTo(1.5 * s, headR * 0.4); ctx.stroke();
+                 ctx.beginPath(); ctx.arc(0, headR * 0.3, 1.2 * s, 0, Math.PI); ctx.stroke();
             }
             ctx.restore();
         };
