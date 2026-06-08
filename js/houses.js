@@ -122,11 +122,12 @@ Babs.Houses.register({
             if (!g.jumping && g.willJump && block.roofT > (g.jumpAt || 180)) { g.jumping = true; g.jumpT = 0; }
             if (g.jumping) {
                 g.jumpT++; const jt = g.jumpT;
-                let jx = g.jumpDir * (w * 0.3 + 1.8 * k * jt) + g.xOffset * w;
+                const windOffset = (chars.lane ? chars.lane.currentWind || 0 : 0);
+                let jx = g.jumpDir * (w * 0.3 + 1.8 * k * jt) + g.xOffset * w + windOffset * jt * k * 0.6;
                 let jy = -h / 2 - 4.5 * k * jt + 0.22 * k * jt * jt;
 
                 if (g.hasParachute && jt > 18) {
-                    jx = g.jumpDir * (w * 0.3 + 1.8 * k * 18 + 0.6 * k * (jt - 18)) + g.xOffset * w;
+                    jx = g.jumpDir * (w * 0.3 + 1.8 * k * 18 + 0.6 * k * (jt - 18)) + g.xOffset * w + windOffset * 18 * k * 0.6 + windOffset * (jt - 18) * k * 2.8;
                     jy = -h / 2 - 4.5 * k * 18 + 0.22 * k * 18 * 18 + 0.8 * k * (jt - 18);
                     ctx.save(); ctx.translate(jx, jy);
                     ctx.fillStyle = '#ef4444'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;

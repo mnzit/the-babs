@@ -201,6 +201,9 @@ Babs.LaneRenderer = function (lane) {
             const legR = Math.sin(c) * 0.55;
             const lift = (isScared ? Math.sin(c) : Math.abs(Math.sin(c)) * 0.8) * 1.4 * s;
             const shake = isScared ? Math.sin(t * (46 + (phase%5)*4) + phase) * 1.1 * s : 0;
+            const wind = this.lane ? this.lane.currentWind || 0 : 0;
+            const windShift = wind * (isScared ? 2 : 1) * s;
+            const windLean = wind * 0.15; // rotate radians
             
             const dark = '#1f2937', skinColor = '#ffcdb2';
             const legLen = 6.5 * s;
@@ -213,7 +216,8 @@ Babs.LaneRenderer = function (lane) {
             
             const rr = (x, yy, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, yy, w, h, r); };
             ctx.save();
-            ctx.translate(cx + shake, cy - lift);
+            ctx.translate(cx + shake + windShift, cy - lift);
+            ctx.rotate(windLean);
             ctx.scale(facing, squish);
             
             // Legs
@@ -315,11 +319,15 @@ Babs.LaneRenderer = function (lane) {
             const ctx = this.ctx; const isScared = emotion === 'panic'; facing = facing || 1;
             s *= 2; // double size to match guys
             const bob = Math.sin(t * 2 + phase) * 0.8 * s;
+            const wind = this.lane ? this.lane.currentWind || 0 : 0;
+            const windShift = wind * 2 * s;
+            
             const dark = '#1f2937', skinColor = '#ffcdb2';
             const headR = 5.5 * s;
             
             const rr = (x, yy, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, yy, w, h, r); };
-            ctx.save(); ctx.translate(cx, cy - bob); ctx.scale(facing, 1);
+            ctx.save(); ctx.translate(cx + windShift, cy - bob); ctx.scale(facing, 1);
+            ctx.rotate(wind * 0.1);
             
             // Head
             ctx.fillStyle = skinColor; ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * s;
