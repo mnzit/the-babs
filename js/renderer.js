@@ -189,10 +189,10 @@ Babs.LaneRenderer = function (lane) {
 
         // The hatted character (inspired by the runner you shared). Drawn standing on (cx,cy) as the
         // FEET; he walks (legs/arms swing, body bobs) and panics (arms up, wide eyes, open mouth,
-        // shaking). `facing` flips him; `squish` flattens him (used when a house lands on his roof).
+        // shaking). `facing` flips him; `squish` flattens him (used when a house lands on his roof)
         Babs.LaneRenderer.prototype.drawGuy = function (cx, cy, s, emotion, t, phase, color, facing, squish, girl) {
             const ctx = this.ctx;
-            s *= 2; // Double the size as requested
+            s *= 2; 
             const isScared = emotion === 'panic';
             const hasParachute = emotion === 'parachute';
             const armsUp = isScared || hasParachute;
@@ -201,66 +201,36 @@ Babs.LaneRenderer = function (lane) {
             const legR = Math.sin(c) * 0.55;
             const lift = (isScared ? Math.sin(c) : Math.abs(Math.sin(c)) * 0.8) * 1.4 * s;
             const shake = isScared ? Math.sin(t * (46 + (phase%5)*4) + phase) * 1.1 * s : 0;
-            const bw = 11 * s, bh = 13 * s, legLen = 6.5 * s, dark = '#1f2937';
-            const hipY = -legLen, bodyCY = hipY - bh / 2;
+            
+            const dark = '#1f2937', skinColor = '#ffcdb2';
+            const legLen = 6.5 * s;
+            const torsoW = 10 * s, torsoH = 9 * s;
+            const headR = 5.5 * s;
+            
+            const hipY = -legLen;
+            const torsoCY = hipY - torsoH / 2;
+            const headCY = hipY - torsoH - headR + 1 * s; // slight neck overlap
+            
             const rr = (x, yy, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, yy, w, h, r); };
             ctx.save();
             ctx.translate(cx + shake, cy - lift);
             ctx.scale(facing, squish);
-            // legs
+            
+            // Legs
             const leg = (hx, rot) => {
                 ctx.save(); ctx.translate(hx, hipY); ctx.rotate(rot);
-                ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 1 * s;
+                ctx.fillStyle = skinColor; ctx.strokeStyle = dark; ctx.lineWidth = 1 * s;
                 rr(-1.4 * s, 0, 2.8 * s, legLen + 0.5 * s, 1.3 * s); ctx.fill(); ctx.stroke();
                 ctx.fillStyle = '#3b6fb5'; rr(-1.4 * s, 0, 2.8 * s, legLen * 0.55, 1.3 * s); ctx.fill();
                 ctx.restore();
             };
-            leg(-bw * 0.26, legR); leg(bw * 0.26, -legR);
-            // body group
-            ctx.save(); ctx.translate(0, bodyCY);
-            ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * s;
-            rr(-bw / 2, -bh / 2, bw, bh, 3.5 * s); ctx.fill(); ctx.stroke();
-            ctx.save(); rr(-bw / 2, -bh / 2, bw, bh, 3.5 * s); ctx.clip();
-            ctx.fillStyle = color; ctx.fillRect(-bw / 2, bh * 0.1, bw, bh);
-            if (girl) {
-                ctx.fillStyle = color; ctx.strokeStyle = dark; ctx.lineWidth = 1.0 * s;
-                ctx.beginPath(); ctx.arc(-bw * 0.22, bh * 0.25, 2.5 * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.arc(bw * 0.22, bh * 0.25, 2.5 * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            } else {
-                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(-bw * 0.2, bh * 0.1); ctx.lineTo(bw * 0.2, bh * 0.1); ctx.lineTo(0, bh * 0.36); ctx.closePath(); ctx.fill();
-                ctx.fillStyle = '#7f1d1d'; ctx.beginPath(); ctx.moveTo(-1 * s, bh * 0.16); ctx.lineTo(1 * s, bh * 0.16); ctx.lineTo(0, bh * 0.46); ctx.closePath(); ctx.fill();
-            }
-            ctx.restore();
-            const hatH = bh * 0.5;
-            ctx.fillStyle = color; ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * s;
-            ctx.beginPath();
-            ctx.moveTo(-bw / 2, -bh / 2 + 1 * s); ctx.lineTo(-bw / 2, -bh / 2 - hatH + 4 * s);
-            ctx.quadraticCurveTo(-bw / 2, -bh / 2 - hatH, -bw / 2 + 4 * s, -bh / 2 - hatH);
-            ctx.lineTo(bw / 2 - 4 * s, -bh / 2 - hatH); ctx.quadraticCurveTo(bw / 2, -bh / 2 - hatH, bw / 2, -bh / 2 - hatH + 4 * s);
-            ctx.lineTo(bw / 2, -bh / 2 + 1 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
-            rr(-bw / 2 - 1.5 * s, -bh / 2 - 1.5 * s, bw + 3 * s, 2.5 * s, 1 * s); ctx.fill(); ctx.stroke();
-            const ey = -bh * 0.04, eR = (isScared || hasParachute ? 2.3 : 1.9) * s;
+            leg(-torsoW * 0.25, legR); leg(torsoW * 0.25, -legR);
             
-            // All states now have wide white eyes, no more squinting
-            ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 0.8 * s;
-            ctx.beginPath(); ctx.arc(-bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            
-            // Pupils
-            ctx.fillStyle = dark; 
-            const pupilYOffset = (isScared || hasParachute) ? -eR * 0.2 : 0;
-            ctx.beginPath(); ctx.arc(-bw * 0.2, ey + pupilYOffset, eR * 0.45, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey + pupilYOffset, eR * 0.45, 0, Math.PI * 2); ctx.fill();
-            
-            // Mouth
-            if (isScared) {
-                 ctx.beginPath(); ctx.arc(0, bh * 0.06, 1.8 * s, 0, Math.PI * 2); ctx.fill(); // open mouth
-            } else if (hasParachute || emotion === 'happy') {
-                 ctx.beginPath(); ctx.arc(0, bh * 0.03, 1.8 * s, 0, Math.PI); ctx.stroke(); // smile
-            } else {
-                ctx.strokeStyle = dark; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(-1.5 * s, bh * 0.06); ctx.lineTo(1.5 * s, bh * 0.06); ctx.stroke(); // idle line
-            }
+            // Arms (drawn behind body if not raised, or in front? Let's just draw them here)
             const arm = (sx, rot) => {
-                ctx.save(); ctx.translate(sx, -bh * 0.12); ctx.rotate(rot);
-                ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 1 * s; rr(-1.3 * s, 0, 2.6 * s, 6 * s, 1.2 * s); ctx.fill(); ctx.stroke();
+                ctx.save(); ctx.translate(sx, torsoCY - torsoH * 0.3); ctx.rotate(rot);
+                ctx.fillStyle = skinColor; ctx.strokeStyle = dark; ctx.lineWidth = 1 * s; 
+                rr(-1.3 * s, 0, 2.6 * s, 6 * s, 1.2 * s); ctx.fill(); ctx.stroke();
                 ctx.fillStyle = color; rr(-1.3 * s, 0, 2.6 * s, 3 * s, 1.2 * s); ctx.fill();
                 ctx.restore();
             };
@@ -268,55 +238,76 @@ Babs.LaneRenderer = function (lane) {
                 const wv = hasParachute ? 0 : Math.sin(t * (20 + (phase%5)*2) + phase * 2.3) * 0.4; 
                 const leftArmRot = hasParachute ? 3.0 : 2.8 - wv;
                 const rightArmRot = hasParachute ? -3.0 : -2.8 + wv;
-                arm(-bw * 0.48, leftArmRot); 
-                arm(bw * 0.48, rightArmRot); 
+                arm(-torsoW * 0.45, leftArmRot); 
+                arm(torsoW * 0.45, rightArmRot); 
             } else { 
-                arm(-bw * 0.4, legR * 1.5); arm(bw * 0.4, -legR * 1.5); 
+                arm(-torsoW * 0.4, legR * 1.5); arm(torsoW * 0.4, -legR * 1.5); 
             }
+            
+            // Torso
+            ctx.save(); ctx.translate(0, torsoCY);
+            ctx.fillStyle = color; ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * s;
+            rr(-torsoW / 2, -torsoH / 2, torsoW, torsoH, 2.5 * s); ctx.fill(); ctx.stroke();
+            
             if (girl) {
-                // skirt over the hips
-                ctx.fillStyle = color; ctx.strokeStyle = dark; ctx.lineWidth = 1.2 * s;
-                ctx.beginPath();
-                ctx.moveTo(-bw * 0.42, bh * 0.34); ctx.lineTo(bw * 0.42, bh * 0.34);
-                ctx.lineTo(bw * 0.66, bh / 2 + 3.5 * s); ctx.lineTo(-bw * 0.66, bh / 2 + 3.5 * s);
-                ctx.closePath(); ctx.fill(); ctx.stroke();
-                // pink bow on top of the hat
-                const byo = -bh / 2 - hatH;
-                ctx.fillStyle = '#f472b6';
+                ctx.fillStyle = color; ctx.strokeStyle = dark; ctx.lineWidth = 1.0 * s;
+                ctx.beginPath(); ctx.arc(-torsoW * 0.22, -torsoH * 0.15, 2.5 * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.arc(torsoW * 0.22, -torsoH * 0.15, 2.5 * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            } else {
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(-torsoW * 0.2, -torsoH * 0.5); ctx.lineTo(torsoW * 0.2, -torsoH * 0.5); ctx.lineTo(0, -torsoH * 0.1); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#7f1d1d'; ctx.beginPath(); ctx.moveTo(-1 * s, -torsoH * 0.4); ctx.lineTo(1 * s, -torsoH * 0.4); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+            }
+            
+            // IF GIRL, ADD BOW TO HAT
+            if (girl) {
+                const byo = -headR * 0.3 - hatH;
+                ctx.fillStyle = '#f472b6'; ctx.strokeStyle = dark; ctx.lineWidth = 1.0 * s;
                 ctx.beginPath(); ctx.moveTo(0, byo); ctx.lineTo(-4 * s, byo - 3 * s); ctx.lineTo(-4 * s, byo + 3 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(0, byo); ctx.lineTo(4 * s, byo - 3 * s); ctx.lineTo(4 * s, byo + 3 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
                 ctx.beginPath(); ctx.arc(0, byo, 1.5 * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             }
-            ctx.restore();
-            ctx.restore();
+            ctx.restore(); // end head
+            ctx.restore(); // end global
         };
 
         // Just the head + hat (for the window-peek houses), bobbing and looking left/right.
         Babs.LaneRenderer.prototype.drawHead = function (cx, cy, s, emotion, t, phase, color, facing) {
-            const ctx = this.ctx; const panic = emotion === 'panic'; facing = facing || 1;
+            const ctx = this.ctx; const isScared = emotion === 'panic'; facing = facing || 1;
+            s *= 2; // double size to match guys
             const bob = Math.sin(t * 2 + phase) * 0.8 * s;
-            const bw = 11 * s, bh = 10 * s, dark = '#1f2937';
+            const dark = '#1f2937', skinColor = '#ffcdb2';
+            const headR = 5.5 * s;
+            
             const rr = (x, yy, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, yy, w, h, r); };
             ctx.save(); ctx.translate(cx, cy - bob); ctx.scale(facing, 1);
-            ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * s;
-            rr(-bw / 2, -bh / 2, bw, bh, 3 * s); ctx.fill(); ctx.stroke();
-            const hatH = bh * 0.55; ctx.fillStyle = color;
+            
+            // Head
+            ctx.fillStyle = skinColor; ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * s;
+            ctx.beginPath(); ctx.arc(0, 0, headR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            
+            // Hat
+            const hatH = headR * 0.8;
+            ctx.fillStyle = color; ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * s;
             ctx.beginPath();
-            ctx.moveTo(-bw / 2, -bh / 2 + 1 * s); ctx.lineTo(-bw / 2, -bh / 2 - hatH + 4 * s);
-            ctx.quadraticCurveTo(-bw / 2, -bh / 2 - hatH, -bw / 2 + 4 * s, -bh / 2 - hatH);
-            ctx.lineTo(bw / 2 - 4 * s, -bh / 2 - hatH); ctx.quadraticCurveTo(bw / 2, -bh / 2 - hatH, bw / 2, -bh / 2 - hatH + 4 * s);
-            ctx.lineTo(bw / 2, -bh / 2 + 1 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
-            rr(-bw / 2 - 1.5 * s, -bh / 2 - 1.5 * s, bw + 3 * s, 2.5 * s, 1 * s); ctx.fill(); ctx.stroke();
-            const ey = -bh * 0.02, eR = (panic ? 1.6 : 1.2) * s;
-            if (panic) {
-                ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 0.8 * s;
-                ctx.beginPath(); ctx.arc(-bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(-bw * 0.2, ey - eR * 0.2, eR * 0.5, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey - eR * 0.2, eR * 0.5, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(0, bh * 0.24, 1.5 * s, 0, Math.PI * 2); ctx.fill();
+            ctx.moveTo(-headR, -headR * 0.3); ctx.lineTo(-headR, -headR * 0.3 - hatH + 4 * s);
+            ctx.quadraticCurveTo(-headR, -headR * 0.3 - hatH, -headR + 4 * s, -headR * 0.3 - hatH);
+            ctx.lineTo(headR - 4 * s, -headR * 0.3 - hatH); ctx.quadraticCurveTo(headR, -headR * 0.3 - hatH, headR, -headR * 0.3 - hatH + 4 * s);
+            ctx.lineTo(headR, -headR * 0.3); ctx.closePath(); ctx.fill(); ctx.stroke();
+            rr(-headR - 1.5 * s, -headR * 0.3 - 1.5 * s, headR * 2 + 3 * s, 2.5 * s, 1 * s); ctx.fill(); ctx.stroke();
+            
+            // Face
+            const ey = -headR * 0.1, eR = (isScared ? 2.3 : 1.9) * s;
+            ctx.fillStyle = '#fff'; ctx.strokeStyle = dark; ctx.lineWidth = 0.8 * s;
+            ctx.beginPath(); ctx.arc(-headR * 0.35, ey, eR, 0, Math.PI * 2); ctx.arc(headR * 0.35, ey, eR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            
+            ctx.fillStyle = dark; 
+            const pupilYOffset = isScared ? -eR * 0.2 : 0;
+            ctx.beginPath(); ctx.arc(-headR * 0.35, ey + pupilYOffset, eR * 0.45, 0, Math.PI * 2); ctx.arc(headR * 0.35, ey + pupilYOffset, eR * 0.45, 0, Math.PI * 2); ctx.fill();
+            
+            if (isScared) {
+                 ctx.beginPath(); ctx.arc(0, headR * 0.35, 1.8 * s, 0, Math.PI * 2); ctx.fill();
             } else {
-                ctx.fillStyle = dark;
-                ctx.beginPath(); ctx.arc(-bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.arc(bw * 0.2, ey, eR, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = dark; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(-1.5 * s, bh * 0.24); ctx.lineTo(1.5 * s, bh * 0.24); ctx.stroke();
+                ctx.strokeStyle = dark; ctx.lineWidth = 1 * s; ctx.beginPath(); ctx.moveTo(-1.5 * s, headR * 0.35); ctx.lineTo(1.5 * s, headR * 0.35); ctx.stroke();
             }
             ctx.restore();
         };
