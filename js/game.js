@@ -138,7 +138,7 @@
                 cv.addEventListener('pointerdown', function (e) { e.preventDefault(); lane.drop(); });
                 lanes.push(lane);
             }
-            lanes.forEach(l => l.players.forEach(p => { if (p.spellEnergy === undefined) p.spellEnergy = 2; }));
+            lanes.forEach(l => l.players.forEach(p => { if (p.spellEnergy === undefined) p.spellEnergy = Babs.CONFIG.spell.startEnergy; }));
         }
 
         // Build the per-player drop buttons for battle mode.
@@ -162,7 +162,7 @@
             Babs.bus.emit('game:playing', {});
             buildLanes();
             Babs.StateMachine.to('playing');
-            lanes.forEach(l => { l.players.forEach(p => p.spellEnergy = 2); l.spawnHanging(); });
+            lanes.forEach(l => { l.players.forEach(p => p.spellEnergy = Babs.CONFIG.spell.startEnergy); l.spawnHanging(); });
 
             // visibility
             const battle = gameMode === 'battle';

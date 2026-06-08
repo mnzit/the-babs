@@ -69,15 +69,16 @@
 
         Lane.prototype.spawnHanging = function () {
             if (this.hanging) Composite.remove(this.engine.world, this.hanging);
+            const hz = this.config.hazards;
             let w = DEFAULT_BOX_WIDTH, h = DEFAULT_BOX_HEIGHT, massMult = 1.0;
-            if (this.sabotage === 'anvil') { w = DEFAULT_BOX_WIDTH * 1.3; h = DEFAULT_BOX_HEIGHT * 1.15; massMult = 3.5; }
+            if (this.sabotage === 'anvil') { w = DEFAULT_BOX_WIDTH * hz.anvilWMult; h = DEFAULT_BOX_HEIGHT * hz.anvilHMult; massMult = hz.anvilMass; }
             const s = shrinkScale(this.successfulDrops);
             w *= s; h *= s;
             const b = Bodies.rectangle(CANVAS_WIDTH / 2, this.pivotY + ropeLength, w, h, {
                 isSensor: true, isStatic: false,
-                friction: this.sabotage === 'ice' ? 0.02 : 0.95,
-                frictionStatic: this.sabotage === 'ice' ? 0.02 : 1.0,
-                frictionAir: 0.02, restitution: 0
+                friction: this.sabotage === 'ice' ? hz.iceFriction : hz.normalFriction,
+                frictionStatic: this.sabotage === 'ice' ? hz.iceFriction : hz.frictionStatic,
+                frictionAir: hz.frictionAir, restitution: 0
             });
             Body.setMass(b, b.mass * massMult);
             b.boxWidth = w; b.boxHeight = h;
@@ -98,13 +99,14 @@
             this.isHanging = false;
             this.hanging.isSensor = false;
             Composite.add(this.engine.world, this.hanging);
-            const swingSpeed = 1.75 + this.successfulDrops * 0.04;
-            const thetaMax = 0.52;
+            const cr = this.config.crane;
+            const swingSpeed = cr.swingBase + this.successfulDrops * cr.swingPerDrop;
+            const thetaMax = cr.thetaMax;
             const theta = thetaMax * Math.sin(this.swingTime * swingSpeed);
             const thetaPrime = thetaMax * swingSpeed * Math.cos(this.swingTime * swingSpeed);
-            let vx = ropeLength * thetaPrime * Math.cos(theta) * 0.006;
-            vx = Math.max(-1.2, Math.min(1.2, vx));
-            Body.setVelocity(this.hanging, { x: vx, y: 1.6 });
+            let vx = ropeLength * thetaPrime * Math.cos(theta) * cr.vxFactor;
+            vx = Math.max(-cr.vxClamp, Math.min(cr.vxClamp, vx));
+            Body.setVelocity(this.hanging, { x: vx, y: cr.dropVelocityY });
             this.blocks.push(this.hanging);
             const dropped = this.hanging;
             this.hanging = null;
@@ -197,16 +199,16 @@
         };
 
         Lane.prototype.runAI = function () {
-            const self = this;
+            const self = this, ai = this.config.ai;
             setTimeout(function () {
                 if (!matchActive || !self.alive || !self.player().isAI) return;
                 const timer = setInterval(function () {
                     if (!self.hanging || !self.isHanging) { clearInterval(timer); return; }
                     const targetX = self.blocks.length ? self.blocks[self.blocks.length - 1].position.x : CANVAS_WIDTH / 2;
                     const diff = Math.abs(self.hanging.position.x - targetX);
-                    if (diff < 16) { clearInterval(timer); self._aiTrigger = true; self.drop(); self._aiTrigger = false; }
-                }, 100);
-            }, 1200);
+                    if (diff < ai.aimTolerance) { clearInterval(timer); self._aiTrigger = true; self.drop(); self._aiTrigger = false; }
+                }, ai.tickMs);
+            }, ai.thinkDelayMs);
         };
 
         Lane.prototype.checkCollapse = function () {
@@ -238,7 +240,7 @@
         };
 
         Lane.prototype.queueSpell = function (type) {
-            const cost = type === 'anvil' ? 2 : 1;
+            const cost = type === 'anvil' ? this.config.spell.anvilCost : this.config.spell.defaultCost;
             const p = this.player();
             if ((p.spellEnergy || 0) < cost) { this.toast('NO ENERGY', '#ef4444'); this.bus.emit('spell:noenergy', { lane: this, type: type }); return; }
             this.bus.emit('spell:queued', { lane: this, type: type });
@@ -255,18 +257,18 @@
             if (!target) { this.spawnHanging(); target = this.hanging; }
             if (!target) return;
             target.isJunkHouse = true; target.byName = byName || '';
-            const f = 0.68;                              // smaller than the normal house, to trick them
+            const f = this.config.hazards.junkScale;     // smaller than the normal house, to trick them
             Body.scale(target, f, f);
             target.boxWidth = (target.boxWidth || DEFAULT_BOX_WIDTH) * f;
             target.boxHeight = (target.boxHeight || DEFAULT_BOX_HEIGHT) * f;
-            Body.setMass(target, target.mass * 5);      // ...but secretly a heavy anvil
+            Body.setMass(target, target.mass * this.config.hazards.junkMassMult);   // ...but secretly a heavy anvil
             this.flash = 1;
             this.toast((byName || 'Rival') + ' swapped your house for JUNK!', '#ef4444');
             this.bus.emit('sabotage:junk', { lane: this, byName: byName });
         };
 
         Lane.prototype.spikeWind = function (byName) {
-            this.targetWind = (Math.random() < 0.5 ? -1 : 1) * 2.8;
+            this.targetWind = (Math.random() < 0.5 ? -1 : 1) * this.config.wind.spikeMag;
             this.flash = 1;
             this.toast((byName ? byName + "'s " : '') + 'GALE!', '#0891b2');
             this.bus.emit('sabotage:wind', { lane: this, byName: byName });
@@ -288,13 +290,13 @@
             this.flash = 1;
             this.toast((byName || 'Rival') + ' BLEW UP your house!', '#a855f7');
             const self = this;
-            setTimeout(function () { if (matchActive && self.alive && !self.hanging && !self.pending) self.spawnHanging(); }, 700);
+            setTimeout(function () { if (matchActive && self.alive && !self.hanging && !self.pending) self.spawnHanging(); }, this.config.hazards.zapRespawnMs);
         };
 
         // A big burst: house chunks fly out in every direction + a bright flash.
         Lane.prototype.spawnExplosion = function (x, y, size) {
             const colors = ['#d97706', '#fef3c7', '#78350f', '#3b82f6', '#fbbf24', '#f97316', '#ef4444'];
-            for (let i = 0; i < 28; i++) {
+            for (let i = 0; i < this.config.demolition.explosionShards; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 3 + Math.random() * 8;
                 this.particles.push({
                     x: x + (Math.random() - 0.5) * size * 0.4, y: y + (Math.random() - 0.5) * size * 0.4,
@@ -303,7 +305,7 @@
                     life: 1.0, decay: Math.random() * 0.01 + 0.005, gravity: true, square: true
                 });
             }
-            for (let i = 0; i < 8; i++) {           // bright fireball puffs
+            for (let i = 0; i < this.config.demolition.explosionPuffs; i++) {           // bright fireball puffs
                 const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 4;
                 this.particles.push({
                     x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
@@ -313,7 +315,7 @@
             }
         };
 
-        Lane.prototype.toast = function (text, color) { this._toast = { text: text, color: color || '#3b82f6', t: 90 }; };
+        Lane.prototype.toast = function (text, color) { this._toast = { text: text, color: color || '#3b82f6', t: this.config.toast.frames }; };
 
         // Build a wooden scaffold platform on top of the current tower: a wide plank raised on
         // criss-cross stilts, nudged back toward the lane centre so it bridges over an
@@ -322,13 +324,14 @@
             let top = null, topY = Infinity;
             this.blocks.forEach(b => { if (b.position.y < topY) { topY = b.position.y; top = b; } });
             if (!top) return;
+            const sc = this.config.scaffold;
             const tw = top.boxWidth || DEFAULT_BOX_WIDTH, th = top.boxHeight || DEFAULT_BOX_HEIGHT;
-            const sw = Math.max(DEFAULT_BOX_WIDTH * 1.25, tw * 1.15), sh = 16, gap = 26;
+            const sw = Math.max(DEFAULT_BOX_WIDTH * sc.minWidthFactor, tw * sc.widthFactor), sh = sc.height, gap = sc.gap;
             const topEdge = top.position.y - th / 2;
             // bias the new level back toward the lane centre (where the crane drops) so the bridge
             // re-centres the tower; the legs then slant out to the off-centre house below.
-            let sx = top.position.x + (CANVAS_WIDTH / 2 - top.position.x) * 0.7;
-            sx = Math.max(sw / 2 + 8, Math.min(CANVAS_WIDTH - sw / 2 - 8, sx));
+            let sx = top.position.x + (CANVAS_WIDTH / 2 - top.position.x) * sc.recenterBias;
+            sx = Math.max(sw / 2 + sc.edgePad, Math.min(CANVAS_WIDTH - sw / 2 - sc.edgePad, sx));
             const sy = topEdge - gap - sh / 2;
             const beam = Bodies.rectangle(sx, sy, sw, sh, { isStatic: true, friction: 1.0 });
             beam.boxWidth = sw; beam.boxHeight = sh; beam.isScaffold = true;
@@ -350,29 +353,30 @@
         };
 
         Lane.prototype.updatePhysics = function () {
+            const cam = this.config.camera, wnd = this.config.wind;
             // Wind blows the falling house sideways (force at the top edge so it also tilts a
             // little, like real wind pushing an object).
             if (this.pending && !this.pending.isStatic) {
                 const ph = this.pending.boxHeight || DEFAULT_BOX_HEIGHT;
-                const at = { x: this.pending.position.x, y: this.pending.position.y - ph * 0.35 };
-                Body.applyForce(this.pending, at, { x: this.currentWind * 0.00011 * this.pending.mass, y: 0 });
+                const at = { x: this.pending.position.x, y: this.pending.position.y - ph * wnd.forceYOffset };
+                Body.applyForce(this.pending, at, { x: this.currentWind * wnd.force * this.pending.mass, y: 0 });
             }
             Engine.update(this.engine, 1000 / 60);
             this.checkSettle();
             this.checkCollapse();
-            this.swingTime += 0.013;
-            this.currentWind += (this.targetWind - this.currentWind) * 0.03;
+            this.swingTime += cam.swingTimeStep;
+            this.currentWind += (this.targetWind - this.currentWind) * cam.windLerp;
 
             // junk that fell away can be forgotten
-            this.junk = this.junk.filter(j => j.position.y < PLATFORM_Y + 400);
+            this.junk = this.junk.filter(j => j.position.y < PLATFORM_Y + this.config.demolition.junkForgetBelow);
 
             let top = PLATFORM_Y;
             this.blocks.forEach(b => { if (b === this.pending) return; const t = b.position.y - (b.boxHeight || DEFAULT_BOX_HEIGHT) / 2; if (t < top) top = t; });
-            this.targetPivotY = Math.min(50, top - HANG_OFFSET);
-            this.targetCameraYOffset = Math.max(0, 470 - top);
-            this.pivotY += (this.targetPivotY - this.pivotY) * 0.08;
-            this.cameraYOffset += (this.targetCameraYOffset - this.cameraYOffset) * 0.08;
-            if (this.flash > 0) this.flash -= 0.04;
+            this.targetPivotY = Math.min(cam.maxPivotY, top - HANG_OFFSET);
+            this.targetCameraYOffset = Math.max(0, cam.restAnchor - top);
+            this.pivotY += (this.targetPivotY - this.pivotY) * cam.pivotLerp;
+            this.cameraYOffset += (this.targetCameraYOffset - this.cameraYOffset) * cam.cameraLerp;
+            if (this.flash > 0) this.flash -= cam.flashDecay;
             if (this._toast) { this._toast.t--; if (this._toast.t <= 0) this._toast = null; }
         };
 
@@ -393,7 +397,7 @@
 
         Lane.prototype.spawnDebris = function (x, y, w) {
             const colors = ['#d97706', '#fef3c7', '#78350f', '#3b82f6', '#fbbf24'];
-            for (let i = 0; i < 16; i++) this.particles.push({
+            for (let i = 0; i < this.config.demolition.debrisCount; i++) this.particles.push({
                 x: x + (Math.random() - 0.5) * w, y: y + (Math.random() - 0.5) * 30,
                 vx: (Math.random() - 0.5) * 9, vy: -Math.random() * 6 - 1,
                 size: Math.random() * 9 + 5, color: colors[(Math.random() * colors.length) | 0],
@@ -414,14 +418,15 @@
         };
 
         Lane.prototype.updateDemolition = function () {
-            this.swingTime += 0.013;
-            this.cameraYOffset += (this.targetCameraYOffset - this.cameraYOffset) * 0.08;
+            const dm = this.config.demolition;
+            this.swingTime += this.config.camera.swingTimeStep;
+            this.cameraYOffset += (this.targetCameraYOffset - this.cameraYOffset) * this.config.camera.cameraLerp;
             if (this._toast) { this._toast.t--; if (this._toast.t <= 0) this._toast = null; }
-            const FALL_FRAMES = 7;
+            const FALL_FRAMES = dm.fallFrames;
 
             if (this.demoState === 'intro') {
                 // let the camera settle on the base before we start
-                if (++this._wait > 18) this.demoState = 'break';
+                if (++this._wait > dm.introWait) this.demoState = 'break';
                 return;
             }
 
