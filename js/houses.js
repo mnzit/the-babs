@@ -94,10 +94,10 @@ Babs.Houses.register({
         if (!block.jumping && block.willJump && block.roofT > (block.jumpAt || 180)) { block.jumping = true; block.jumpT = 0; }
         if (block.jumping) {
           block.jumpT++; const dir = block.jumpDir || 1, jt = block.jumpT;
-          const jx = dir * (w * 0.32 + 0.2 * k * jt);              // hop off the edge
-          const jy = -h / 2 - 2.5 * k * jt + 0.12 * k * jt * jt;   // up a little, then fall straight down
+          const jx = dir * (w * 0.3 + 1.8 * k * jt);
+          const jy = -h / 2 - 4.5 * k * jt + 0.22 * k * jt * jt;
           chars.drawGuy(jx, jy, k * 0.9, 'panic', t, ph, color, dir, 1);
-          if (jy > 340) block.guyGone = true;                       // gone only once he's fallen well below
+          if (jy > 1500) block.guyGone = true;
         } else {
           chars.drawGuy(walk(0.9) * w * 0.3, -h / 2, k * 0.9, emotion, t, ph, color, face(0.9), 1);
         }
@@ -106,7 +106,7 @@ Babs.Houses.register({
         block.squishT = (block.squishT || 0) + 1;
         const p = Math.min(1, block.squishT / dur);
         const sq = 1 - p * 0.9;                     // flatten 1 -> 0.1
-        const fy = -h / 2 + (4 + p * 9) * k;        // pressed down onto the wall as he flattens
+        const fy = -h / 2;                          // keep feet planted on the roof
         chars.drawGuy(0, fy, k * 0.85, 'panic', t, ph, color, 1, sq);
         if (block.squishT >= dur) block.guyGone = true;   // squished flat -> gone
       }
