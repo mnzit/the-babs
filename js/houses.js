@@ -131,7 +131,7 @@ Babs.Houses.register({
                     ctx.save(); ctx.translate(jx, jy);
                     ctx.fillStyle = '#ef4444'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(0, -70 * k, 50 * k, Math.PI, 0); ctx.fill(); ctx.stroke();
-                    ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.moveTo(-50 * k, -70 * k); ctx.lineTo(-10 * k, -35 * k);
                     ctx.moveTo(50 * k, -70 * k); ctx.lineTo(10 * k, -35 * k); ctx.stroke();
                     ctx.restore();
