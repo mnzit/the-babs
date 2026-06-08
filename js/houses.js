@@ -79,63 +79,121 @@ Babs.Houses.register({
   id: 2, weight: 1,
   initBlock: function (b) {
     b.houseType = 2;
-    b.willJump = Math.random() < 0.5;            // some roof guys get scared and jump
-    b.jumpAt = 40 + Math.random() * 120;         // ...soon-ish, while still on top
-    b.jumpDir = Math.random() < 0.5 ? -1 : 1;
+    const numGuys = Math.random() < 0.4 ? 3 : 1;
+    b.roofGuys = [];
+    const parachuteIndex = numGuys === 3 ? Math.floor(Math.random() * 3) : -1;
+    for (let i = 0; i < numGuys; i++) {
+        const xOffset = numGuys === 1 ? 0.3 : (i - 1) * 0.3; // left, center, right
+        const jumpDir = numGuys === 1 ? (Math.random() < 0.5 ? -1 : 1) : (i === 0 ? -1 : (i === 2 ? 1 : (Math.random() < 0.5 ? -1 : 1)));
+        b.roofGuys.push({
+            id: i, xOffset: xOffset,
+            willJump: Math.random() < 0.5 || (numGuys === 3 && i === parachuteIndex),
+            hasParachute: (numGuys === 3 && i === parachuteIndex),
+            jumpAt: 40 + Math.random() * 120, jumpDir: jumpDir,
+            jumping: false, jumpT: 0, guyGone: false
+        });
+    }
   },
   draw: function (c) {
     const { ctx, w, h, k, st, dark, emotion, t, ph, color, isTop, walk, face, block, chars } = c;
-    ctx.fillStyle = st.trim; ctx.strokeStyle = dark; ctx.lineWidth = 2.5;   // little chimney
+    ctx.fillStyle = st.trim; ctx.strokeStyle = dark; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.roundRect(w * 0.3, -h / 2 - 8 * k, 5 * k, 8 * k, 1); ctx.fill(); ctx.stroke();
-    if (!block.guyGone) {
-      if (isTop) {
+
+    // compat for already spawned blocks
+    if (!block.roofGuys && !block.guyGone) {
+        block.roofGuys = [{ id: 0, xOffset: 0.3, willJump: block.willJump, hasParachute: false, jumpAt: block.jumpAt, jumpDir: block.jumpDir || 1, jumping: block.jumping, jumpT: block.jumpT || 0, guyGone: block.guyGone }];
+    }
+    if (!block.roofGuys) return;
+
+    if (isTop) {
         block.squishT = 0;
         block.roofT = (block.roofT || 0) + 1;
-        if (!block.jumping && block.willJump && block.roofT > (block.jumpAt || 180)) { block.jumping = true; block.jumpT = 0; }
-        if (block.jumping) {
-          block.jumpT++; const dir = block.jumpDir || 1, jt = block.jumpT;
-          const jx = dir * (w * 0.3 + 1.8 * k * jt);
-          const jy = -h / 2 - 4.5 * k * jt + 0.22 * k * jt * jt;
-          chars.drawGuy(jx, jy, k * 0.9, 'panic', t, ph, color, dir, 1);
-          if (jy > 1500) block.guyGone = true;
-        } else {
-          chars.drawGuy(walk(0.9) * w * 0.3, -h / 2, k * 0.9, emotion, t, ph, color, face(0.9), 1);
-        }
-      } else {
+    } else {
         const guyHeight = 22 * k;
-        if (c.clearance != null) {
-            block.minClearance = Math.min(block.minClearance ?? 1000, c.clearance);
-        }
-        let sq = 1;
-        if (block.minClearance < guyHeight) {
-            sq = Math.max(0.05, block.minClearance / guyHeight);
-        }
-        const fy = -h / 2;                          // keep feet planted on the roof
-        chars.drawGuy(0, fy, k * 0.85, 'panic', t, ph, color, 1, sq);
-        if (sq <= 0.1) {
-            if (!block.guyGone && c.chars && c.chars.lane) {
-                const lane = c.chars.lane;
-                const bx = block.position.x;
-                const by = block.position.y - h / 2;
-                for (let i = 0; i < 25; i++) {
-                    const ang = Math.random() * Math.PI; // mostly upwards/outwards half-circle
-                    const sp = 2 + Math.random() * 7;
-                    lane.particles.push({
-                        x: bx + (Math.random() - 0.5) * 30,
-                        y: by,
-                        vx: Math.cos(ang) * sp,
-                        vy: -Math.sin(ang) * sp - 1, // blast upwards
-                        size: Math.random() * 12 + 4,
-                        color: Math.random() > 0.3 ? 'rgba(220, 20, 40, 0.9)' : 'rgba(150, 10, 20, 0.9)', // bright and dark blood
-                        life: 1.0,
-                        decay: 0.02 + Math.random() * 0.03,
-                        gravity: true
-                    });
-                }
-            }
-            block.guyGone = true;
-        }
-      }
+        if (c.clearance != null) block.minClearance = Math.min(block.minClearance ?? 1000, c.clearance);
+        block.sq = 1;
+        if (block.minClearance < guyHeight) block.sq = Math.max(0.05, block.minClearance / guyHeight);
     }
+
+    block.roofGuys.forEach(g => {
+        if (g.guyGone) return;
+
+        if (isTop) {
+            if (!g.jumping && g.willJump && block.roofT > (g.jumpAt || 180)) { g.jumping = true; g.jumpT = 0; }
+            if (g.jumping) {
+                g.jumpT++; const jt = g.jumpT;
+                let jx = g.jumpDir * (w * 0.3 + 1.8 * k * jt) + g.xOffset * w;
+                let jy = -h / 2 - 4.5 * k * jt + 0.22 * k * jt * jt;
+
+                if (g.hasParachute && jt > 18) {
+                    jx = g.jumpDir * (w * 0.3 + 1.8 * k * 18 + 0.6 * k * (jt - 18)) + g.xOffset * w;
+                    jy = -h / 2 - 4.5 * k * 18 + 0.22 * k * 18 * 18 + 0.8 * k * (jt - 18);
+                    
+                    ctx.save(); ctx.translate(jx, jy);
+                    ctx.fillStyle = '#ef4444'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(0, -30 * k, 25 * k, Math.PI, 0); ctx.fill(); ctx.stroke();
+                    ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(-25 * k, -30 * k); ctx.lineTo(-10 * k, -10 * k);
+                    ctx.moveTo(25 * k, -30 * k); ctx.lineTo(10 * k, -10 * k); ctx.stroke();
+                    ctx.restore();
+                }
+
+                chars.drawGuy(jx, jy, k * 0.9, 'panic', t, ph + g.id, color, g.jumpDir, 1);
+
+                // Check mid-air collision with falling block
+                if (c.nextBlock && !c.nextBlock.isStatic) {
+                    const gx = block.position.x + jx;
+                    const gy = block.position.y + jy;
+                    const nb = c.nextBlock;
+                    const nbW = nb.boxWidth || w; const nbH = nb.boxHeight || h;
+                    if (gx > nb.position.x - nbW/2 && gx < nb.position.x + nbW/2 && 
+                        gy > nb.position.y - nbH/2 && gy < nb.position.y + nbH/2) {
+                        
+                        if (chars && chars.lane) {
+                            const lane = chars.lane;
+                            for (let i = 0; i < 25; i++) {
+                                const ang = Math.random() * Math.PI * 2;
+                                const sp = 2 + Math.random() * 7;
+                                lane.particles.push({
+                                    x: gx + (Math.random() - 0.5) * 30, y: gy,
+                                    vx: Math.cos(ang) * sp, vy: -Math.sin(ang) * sp - 1,
+                                    size: Math.random() * 12 + 4,
+                                    color: Math.random() > 0.3 ? 'rgba(220, 20, 40, 0.9)' : 'rgba(150, 10, 20, 0.9)',
+                                    life: 1.0, decay: 0.02 + Math.random() * 0.03, gravity: true
+                                });
+                            }
+                        }
+                        g.guyGone = true;
+                    }
+                }
+
+                if (jy > 1500) g.guyGone = true;
+            } else {
+                chars.drawGuy(walk(0.9) * g.xOffset * w, -h / 2, k * 0.9, emotion, t, ph + g.id * 2, color, face(0.9), 1);
+            }
+        } else {
+            const sq = block.sq || 1;
+            chars.drawGuy(g.xOffset * w, -h / 2, k * 0.85, 'panic', t, ph + g.id * 2, color, 1, sq);
+            if (sq <= 0.1) {
+                if (chars && chars.lane) {
+                    const lane = chars.lane;
+                    const bx = block.position.x + g.xOffset * w;
+                    const by = block.position.y - h / 2;
+                    for (let i = 0; i < 25; i++) {
+                        const ang = Math.random() * Math.PI;
+                        const sp = 2 + Math.random() * 7;
+                        lane.particles.push({
+                            x: bx + (Math.random() - 0.5) * 30, y: by,
+                            vx: Math.cos(ang) * sp, vy: -Math.sin(ang) * sp - 1,
+                            size: Math.random() * 12 + 4,
+                            color: Math.random() > 0.3 ? 'rgba(220, 20, 40, 0.9)' : 'rgba(150, 10, 20, 0.9)',
+                            life: 1.0, decay: 0.02 + Math.random() * 0.03, gravity: true
+                        });
+                    }
+                }
+                g.guyGone = true;
+            }
+        }
+    });
   }
 });
