@@ -112,7 +112,29 @@ Babs.Houses.register({
         }
         const fy = -h / 2;                          // keep feet planted on the roof
         chars.drawGuy(0, fy, k * 0.85, 'panic', t, ph, color, 1, sq);
-        if (sq <= 0.1) block.guyGone = true;   // squished flat -> gone
+        if (sq <= 0.1) {
+            if (!block.guyGone && c.chars && c.chars.lane) {
+                const lane = c.chars.lane;
+                const bx = block.position.x;
+                const by = block.position.y - h / 2;
+                for (let i = 0; i < 25; i++) {
+                    const ang = Math.random() * Math.PI; // mostly upwards/outwards half-circle
+                    const sp = 2 + Math.random() * 7;
+                    lane.particles.push({
+                        x: bx + (Math.random() - 0.5) * 30,
+                        y: by,
+                        vx: Math.cos(ang) * sp,
+                        vy: -Math.sin(ang) * sp - 1, // blast upwards
+                        size: Math.random() * 12 + 4,
+                        color: Math.random() > 0.3 ? 'rgba(220, 20, 40, 0.9)' : 'rgba(150, 10, 20, 0.9)', // bright and dark blood
+                        life: 1.0,
+                        decay: 0.02 + Math.random() * 0.03,
+                        gravity: true
+                    });
+                }
+            }
+            block.guyGone = true;
+        }
       }
     }
   }
