@@ -133,8 +133,8 @@ Babs.Houses.register({
                     ctx.fillStyle = '#ef4444'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(0, -30 * k, 25 * k, Math.PI, 0); ctx.fill(); ctx.stroke();
                     ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(-25 * k, -30 * k); ctx.lineTo(-10 * k, -10 * k);
-                    ctx.moveTo(25 * k, -30 * k); ctx.lineTo(10 * k, -10 * k); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(-25 * k, -30 * k); ctx.lineTo(-8 * k, -10 * k);
+                    ctx.moveTo(25 * k, -30 * k); ctx.lineTo(8 * k, -10 * k); ctx.stroke();
                     ctx.restore();
                 }
 

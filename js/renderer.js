@@ -256,8 +256,10 @@ Babs.LaneRenderer = function (lane) {
             };
             if (armsUp) { 
                 const wv = hasParachute ? 0 : Math.sin(t * (20 + (phase%5)*2) + phase * 2.3) * 0.4; 
-                arm(-bw * 0.48, -2.5 - wv); 
-                arm(bw * 0.48, 2.5 + wv); 
+                const leftArmRot = hasParachute ? 3.0 : 2.8 - wv;
+                const rightArmRot = hasParachute ? -3.0 : -2.8 + wv;
+                arm(-bw * 0.48, leftArmRot); 
+                arm(bw * 0.48, rightArmRot); 
             } else { 
                 arm(-bw * 0.4, legR * 1.5); arm(bw * 0.4, -legR * 1.5); 
             }
