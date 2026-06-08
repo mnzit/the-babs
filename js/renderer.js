@@ -192,6 +192,7 @@ Babs.LaneRenderer = function (lane) {
         // shaking). `facing` flips him; `squish` flattens him (used when a house lands on his roof).
         Babs.LaneRenderer.prototype.drawGuy = function (cx, cy, s, emotion, t, phase, color, facing, squish, girl) {
             const ctx = this.ctx;
+            s *= 2; // Double the size as requested
             const isScared = emotion === 'panic';
             const hasParachute = emotion === 'parachute';
             const armsUp = isScared || hasParachute;

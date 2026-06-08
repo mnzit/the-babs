@@ -109,7 +109,7 @@ Babs.Houses.register({
         block.squishT = 0;
         block.roofT = (block.roofT || 0) + 1;
     } else {
-        const guyHeight = 22 * k;
+        const guyHeight = 44 * k; // doubled because character scale was doubled
         if (c.clearance != null) block.minClearance = Math.min(block.minClearance ?? 1000, c.clearance);
         block.sq = 1;
         if (block.minClearance < guyHeight) block.sq = Math.max(0.05, block.minClearance / guyHeight);
