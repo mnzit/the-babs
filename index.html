@@ -467,6 +467,10 @@
             b.styleIndex = Math.floor(Math.random() * HOUSE_STYLES.length); // each house looks different
             b.guyPhase = Math.random() * Math.PI * 2;                       // varied character animation
             b.houseType = Math.floor(Math.random() * 3);                    // 0 window-peek, 1 balcony, 2 rooftop
+            b.willJump = Math.random() < 0.45;                              // some roof guys get scared and jump
+            b.jumpAt = 90 + Math.random() * 260;                           // ...after this many frames
+            b.jumpDir = Math.random() < 0.5 ? -1 : 1;
+            b.balconyTwo = Math.random() < 0.5;                            // 1 (a girl) or 2 (a guy + a girl) on a balcony
             this.hanging = b;
             this.isHanging = true;
         };
@@ -834,28 +838,45 @@
             const face = (sp) => (Math.cos(t * sp + ph) >= 0 ? 1 : -1);
 
             if (type === 2) {
-                // ROOFTOP: walks on the roof until a house actually lands on him -> a quick squish,
-                // then he's gone for good.
+                // ROOFTOP: walks the roof; sometimes gets scared and leaps off; if a house lands on
+                // him while he's still up there he gets squished flat (visibly), then he's gone.
                 ctx.fillStyle = st.trim; ctx.strokeStyle = dark; ctx.lineWidth = 2.5;   // little chimney
                 ctx.beginPath(); ctx.roundRect(w * 0.3, -h / 2 - 8 * k, 5 * k, 8 * k, 1); ctx.fill(); ctx.stroke();
                 if (!block.guyGone) {
                     if (isTop) {
                         block.squishT = 0;
-                        this.drawGuy(walk(0.9) * w * 0.3, -h / 2, k * 0.9, emotion, t, ph, color, face(0.9), 1);
+                        block.roofT = (block.roofT || 0) + 1;
+                        if (!block.jumping && block.willJump && block.roofT > (block.jumpAt || 180)) { block.jumping = true; block.jumpT = 0; }
+                        if (block.jumping) {
+                            block.jumpT++; const dir = block.jumpDir || 1, jt = block.jumpT;
+                            const jx = dir * (w * 0.3 + 1.6 * k * jt);
+                            const jy = -h / 2 - 3.4 * k * jt + 0.16 * k * jt * jt;   // leap up then fall away
+                            this.drawGuy(jx, jy, k * 0.9, 'panic', t, ph, color, dir, 1);
+                            if (jy > h * 1.4 || Math.abs(jx) > w) block.guyGone = true;
+                        } else {
+                            this.drawGuy(walk(0.9) * w * 0.3, -h / 2, k * 0.9, emotion, t, ph, color, face(0.9), 1);
+                        }
                     } else {
-                        const dur = 16;
+                        const dur = 26;
                         block.squishT = (block.squishT || 0) + 1;
-                        const sq = Math.max(0.06, 1 - block.squishT / dur);   // flatten 1 -> 0
-                        this.drawGuy(0, -h / 2 + 13 * k, k * 0.85, 'panic', t, ph, color, 1, sq);
-                        if (block.squishT >= dur) block.guyGone = true;       // squished flat -> gone
+                        const p = Math.min(1, block.squishT / dur);
+                        const sq = 1 - p * 0.9;                     // flatten 1 -> 0.1
+                        const fy = -h / 2 + (4 + p * 9) * k;        // pressed down onto the wall as he flattens
+                        this.drawGuy(0, fy, k * 0.85, 'panic', t, ph, color, 1, sq);
+                        if (block.squishT >= dur) block.guyGone = true;   // squished flat -> gone
                     }
                 }
             } else if (type === 1) {
-                // BALCONY: walks on a ledge behind a railing
+                // BALCONY: 1 or 2 residents (a guy + a girl, or just a girl) on a railed ledge
                 ctx.fillStyle = '#33414f'; ctx.strokeStyle = dark; ctx.lineWidth = 3;
                 ctx.beginPath(); ctx.roundRect(-w * 0.16, -h * 0.12, w * 0.32, h * 0.4, 4); ctx.fill(); ctx.stroke();
                 const ledgeY = h * 0.14;
-                this.drawGuy(walk(0.8) * w * 0.2, ledgeY, k * 0.9, emotion, t, ph, color, face(0.8), 1);
+                if (block.balconyTwo) {
+                    this.drawGuy(-w * 0.13 + walk(0.7) * 4, ledgeY, k * 0.8, emotion, t, ph, color, 1, 1, false);
+                    this.drawGuy(w * 0.13 + walk(0.9) * 4, ledgeY, k * 0.8, emotion, t, ph + 2, color, -1, 1, true);
+                } else {
+                    this.drawGuy(walk(0.8) * w * 0.18, ledgeY, k * 0.9, emotion, t, ph, color, face(0.8), 1, true);
+                }
                 const lw2 = w * 0.78;
                 ctx.fillStyle = st.trim; ctx.strokeStyle = dark; ctx.lineWidth = 3;
                 ctx.beginPath(); ctx.roundRect(-lw2 / 2, ledgeY, lw2, 5 * k, 2); ctx.fill(); ctx.stroke();
@@ -885,7 +906,7 @@
         // The hatted character (inspired by the runner you shared). Drawn standing on (cx,cy) as the
         // FEET; he walks (legs/arms swing, body bobs) and panics (arms up, wide eyes, open mouth,
         // shaking). `facing` flips him; `squish` flattens him (used when a house lands on his roof).
-        Lane.prototype.drawGuy = function (cx, cy, s, emotion, t, phase, color, facing, squish) {
+        Lane.prototype.drawGuy = function (cx, cy, s, emotion, t, phase, color, facing, squish, girl) {
             const ctx = this.ctx;
             const panic = emotion === 'panic';
             facing = facing || 1; squish = (squish == null) ? 1 : squish;
@@ -944,6 +965,20 @@
             };
             if (panic) { const wv = Math.sin(t * 24 + phase) * 0.35; arm(-bw * 0.48, -2.5 - wv); arm(bw * 0.48, 2.5 + wv); }
             else { arm(-bw * 0.48, 0.3 - legR); arm(bw * 0.48, -0.3 + legR); }
+            if (girl) {
+                // skirt over the hips
+                ctx.fillStyle = color; ctx.strokeStyle = dark; ctx.lineWidth = 1.2 * s;
+                ctx.beginPath();
+                ctx.moveTo(-bw * 0.42, bh * 0.34); ctx.lineTo(bw * 0.42, bh * 0.34);
+                ctx.lineTo(bw * 0.66, bh / 2 + 3.5 * s); ctx.lineTo(-bw * 0.66, bh / 2 + 3.5 * s);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+                // pink bow on top of the hat
+                const byo = -bh / 2 - hatH;
+                ctx.fillStyle = '#f472b6';
+                ctx.beginPath(); ctx.moveTo(0, byo); ctx.lineTo(-4 * s, byo - 3 * s); ctx.lineTo(-4 * s, byo + 3 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, byo); ctx.lineTo(4 * s, byo - 3 * s); ctx.lineTo(4 * s, byo + 3 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.arc(0, byo, 1.5 * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            }
             ctx.restore();
             ctx.restore();
         };
