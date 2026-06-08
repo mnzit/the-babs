@@ -28,19 +28,23 @@
 
     <!-- Looping background music (kept low) -->
     <audio id="bgm" loop preload="auto"><source src="assets/theme.mp3" type="audio/mpeg"></audio>
-    <!-- Panic scream when a resident's house is about to fall -->
+    <!-- One-shot sound effects -->
     <audio id="sfx-panic" preload="auto"><source src="assets/panic.mp3" type="audio/mpeg"></audio>
+    <audio id="sfx-crush" preload="auto"><source src="assets/crush.mp3" type="audio/mpeg"></audio>
+    <audio id="sfx-chime" preload="auto"><source src="assets/chime.mp3" type="audio/mpeg"></audio>
 
     <script>
-        // Play the panic scream, throttled so a whole tower of panicking residents doesn't overlap.
-        let panicCooldown = 0;
-        function playPanic() {
-            if (panicCooldown > 0) return;
-            panicCooldown = 40; // ~0.7s between screams
-            const a = document.getElementById('sfx-panic');
+        // Fire a one-shot sound effect element at a given volume.
+        function playSfx(id, vol) {
+            const a = document.getElementById(id);
             if (!a) return;
-            try { a.currentTime = 0; a.volume = 0.5; const p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+            try { a.currentTime = 0; a.volume = vol == null ? 0.6 : vol; const p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
         }
+        // Panic scream, throttled so a whole tower of panicking residents doesn't overlap.
+        let panicCooldown = 0;
+        function playPanic() { if (panicCooldown > 0) return; panicCooldown = 40; playSfx('sfx-panic', 0.5); }
+        function playCrush() { playSfx('sfx-crush', 0.6); }   // building crashing down
+        function playChime() { playSfx('sfx-chime', 0.5); }   // perfect drop
     </script>
 
     <script>
@@ -529,6 +533,7 @@
 
             if (perfect) {
                 playSound('perfect');
+                playChime();
                 this.combo++;
                 block.eyeState = 'happy'; block.starSparkles = true;
                 if (this.combo >= 3) {
@@ -664,6 +669,7 @@
         Lane.prototype.startDemolition = function () {
             this.demolishing = true;
             this.demoState = 'intro'; this._wait = 0;
+            playCrush();   // the building starts crashing down
             playPanic();
             this.blocks.forEach(b => { b.wasPanicking = true; }); // they're all doomed now
             this.isHanging = false; this.hanging = null;
