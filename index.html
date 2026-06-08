@@ -337,7 +337,7 @@
         // ---------------------------------------------------------------------------
         const Engine = Matter.Engine, Bodies = Matter.Bodies, Composite = Matter.Composite, Body = Matter.Body;
         const CANVAS_WIDTH = 550, CANVAS_HEIGHT = 700, PLATFORM_Y = 620;
-        const DEFAULT_BOX_WIDTH = 110, DEFAULT_BOX_HEIGHT = 65;
+        const DEFAULT_BOX_WIDTH = 137, DEFAULT_BOX_HEIGHT = 81;   // base house ~25% bigger (shrink rule still applies)
         const pivotX = CANVAS_WIDTH / 2;
         const ropeLength = 265;
         const HANG_OFFSET = 200 + 265; // crane sits this far above the tower top
@@ -656,7 +656,11 @@
             if (!target) { this.spawnHanging(); target = this.hanging; }
             if (!target) return;
             target.isJunkHouse = true; target.byName = byName || '';
-            Body.setMass(target, target.mass * 3);      // heavy anvil-like junk
+            const f = 0.68;                              // smaller than the normal house, to trick them
+            Body.scale(target, f, f);
+            target.boxWidth = (target.boxWidth || DEFAULT_BOX_WIDTH) * f;
+            target.boxHeight = (target.boxHeight || DEFAULT_BOX_HEIGHT) * f;
+            Body.setMass(target, target.mass * 5);      // ...but secretly a heavy anvil
             this.flash = 1;
             this.toast((byName || 'Rival') + ' swapped your house for JUNK!', '#ef4444');
             playSound('wobble');
