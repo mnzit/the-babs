@@ -602,25 +602,44 @@
         };
 
         // sabotage: drop a small junk house onto this lane's tower
-        Lane.prototype.dropJunk = function () {
+        Lane.prototype.dropJunk = function (byName) {
             const s = shrinkScale(this.successfulDrops) * 0.85;   // a chunky sabotage block
             const w = DEFAULT_BOX_WIDTH * s, h = DEFAULT_BOX_HEIGHT * s;
             const x = CANVAS_WIDTH / 2 + (Math.sin(this.swingTime * 7) * 60);
             const j = Bodies.rectangle(x, this.pivotY + 60, w, h, { friction: 0.9, frictionStatic: 1.0, frictionAir: 0.02, restitution: 0 });
-            j.boxWidth = w; j.boxHeight = h; j.isJunk = true;
+            j.boxWidth = w; j.boxHeight = h; j.isJunk = true; j.byName = byName || '';
             Body.setVelocity(j, { x: 0, y: 5 });
             Composite.add(this.engine.world, j);
             this.junk.push(j);
             this.flash = 1;
-            this.toast('INCOMING SABOTAGE', '#ef4444');
+            this.toast((byName || 'Rival') + "'s ANVIL!", '#ef4444');
             playSound('wobble');
         };
 
-        Lane.prototype.spikeWind = function () {
+        Lane.prototype.spikeWind = function (byName) {
             this.targetWind = (Math.random() < 0.5 ? -1 : 1) * 2.8;
             this.flash = 1;
-            this.toast('ENEMY GALE', '#0891b2');
+            this.toast((byName ? byName + "'s " : '') + 'GALE!', '#0891b2');
             playSound('wobble');
+        };
+
+        // Zap the house they're about to drop -- off the crane or while it's falling -- so they
+        // lose it and have to wait for a new one (slows them down).
+        Lane.prototype.zapHouse = function (byName) {
+            let target = null;
+            if (this.pending) {
+                target = this.pending; this.pending = null;
+                const i = this.blocks.indexOf(target); if (i > -1) this.blocks.splice(i, 1);
+                Composite.remove(this.engine.world, target);
+            } else if (this.hanging) {
+                target = this.hanging; Composite.remove(this.engine.world, this.hanging);
+                this.hanging = null; this.isHanging = false;
+            }
+            if (target) { this.spawnDebris(target.position.x, target.position.y, target.boxWidth || DEFAULT_BOX_WIDTH); playSound('collapse'); }
+            this.flash = 1;
+            this.toast((byName || 'Rival') + ' ZAPPED your house!', '#a855f7');
+            const self = this;
+            setTimeout(function () { if (matchActive && self.alive && !self.hanging && !self.pending) self.spawnHanging(); }, 700);
         };
 
         Lane.prototype.toast = function (text, color) { this._toast = { text: text, color: color || '#3b82f6', t: 90 }; };
@@ -1023,7 +1042,13 @@
                 ctx.save(); ctx.translate(j.position.x, j.position.y); ctx.rotate(j.angle);
                 ctx.fillStyle = '#475569'; ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 4;
                 ctx.beginPath(); ctx.roundRect(-j.boxWidth / 2, -j.boxHeight / 2, j.boxWidth, j.boxHeight, 6); ctx.fill(); ctx.stroke();
-                ctx.fillStyle = '#ef4444'; ctx.fillRect(-j.boxWidth / 2, -3, j.boxWidth, 6);
+                ctx.fillStyle = '#ef4444'; ctx.fillRect(-j.boxWidth / 2, -j.boxHeight * 0.32, j.boxWidth, 5);
+                if (j.byName) {
+                    ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+                    ctx.font = 'bold ' + Math.round(Math.max(8, j.boxWidth * 0.16)) + 'px Fredoka';
+                    ctx.fillText(j.byName, 0, j.boxHeight * 0.18);
+                    ctx.textAlign = 'left';
+                }
                 ctx.restore();
             });
         };
@@ -1270,12 +1295,18 @@
             }, 5000);
         }
 
-        // combo: a 3-perfect streak sabotages a random RIVAL tower (battle only)
+        // combo: a 3-perfect streak sabotages a random RIVAL tower (battle only). One of three:
+        // a gale, a heavy junk house (stamped with your name), or zapping the house they're about
+        // to drop (off the crane / mid-fall) so they lose it and slow down.
         function triggerComboEffect(lane) {
             const rivals = lanes.filter(l => l !== lane && l.alive);
             if (!rivals.length) return;
             const enemy = rivals[Math.floor(Math.random() * rivals.length)];
-            if (Math.random() < 0.5) enemy.spikeWind(); else enemy.dropJunk();
+            const by = lane.player().name;
+            const r = Math.random();
+            if (r < 0.34) enemy.spikeWind(by);
+            else if (r < 0.67) enemy.dropJunk(by);
+            else enemy.zapHouse(by);
         }
 
         // Battle: any tower that falls LEAD_HOUSES (5 = 50 m) behind the leader is knocked out.
