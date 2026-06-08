@@ -31,8 +31,9 @@
         function updateHazardUI() {
             Babs.Hazards.all().forEach(h => {
                 const el = document.getElementById('fx-' + h.id); if (!el) return;
-                el.className = 'py-2 rounded-xl text-xs font-black bubbly-font border transition-all ' +
-                    (h.enabled ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-100 text-slate-400 border-slate-200');
+                el.className = 'w-full py-3 rounded-2xl text-lg uppercase border-4 border-slate-900 transition-all text-center flex justify-between px-4 items-center ' +
+                    (h.enabled ? 'bg-rose-400 text-slate-900 shadow-[0_4px_0_#0f172a] hover:-translate-y-1 hover:shadow-[0_6px_0_#0f172a]' : 'bg-white text-slate-400 shadow-none opacity-60 translate-y-1');
+                el.innerHTML = `<span>${h.label}</span> <span>${h.enabled ? 'ON' : 'OFF'}</span>`;
             });
         }
         let lanes = [];
@@ -43,10 +44,16 @@
             gameMode = mode;
             [['selfish','btn-mode-selfish'],['battle','btn-mode-battle'],['coop','btn-mode-coop']].forEach(([m,id]) => {
                 const el = document.getElementById(id);
-                el.classList.toggle('border-indigo-500', mode === m);
-                el.classList.toggle('bg-white', mode === m);
-                el.classList.toggle('border-slate-200', mode !== m);
-                el.classList.toggle('opacity-70', mode !== m);
+                el.classList.remove('bg-amber-400', 'bg-white', 'opacity-80');
+                if (mode === m) {
+                    el.classList.add('bg-amber-400');
+                    el.querySelector('div:last-child').classList.add('text-slate-800');
+                    el.querySelector('div:last-child').classList.remove('text-slate-500');
+                } else {
+                    el.classList.add('bg-white', 'opacity-80');
+                    el.querySelector('div:last-child').classList.remove('text-slate-800');
+                    el.querySelector('div:last-child').classList.add('text-slate-500');
+                }
             });
             const badge = document.getElementById('game-mode-badge');
             const label = mode === 'selfish' ? 'Solo Mode' : (mode === 'battle' ? 'Battle Mode' : 'Co-op Mode');
@@ -65,25 +72,25 @@
             c.innerHTML = '';
             players.forEach((p, idx) => {
                 const row = document.createElement('div');
-                row.className = 'flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200';
+                row.className = 'flex items-center gap-3 p-3 rounded-2xl bg-white border-4 border-slate-900 shadow-[0_4px_0_#0f172a]';
                 row.innerHTML = `
-                    <span class="w-3.5 h-3.5 rounded-full shrink-0" style="background-color:${p.color}"></span>
+                    <div class="w-6 h-6 rounded-full border-2 border-slate-900 shrink-0" style="background-color:${p.color}"></div>
                     <input value="${p.name.replace(/"/g,'&quot;')}" maxlength="14" oninput="renamePlayer(${idx}, this.value)"
-                        class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2 py-1 text-sm font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-400">
-                    ${p.wins ? `<span class="text-[11px] font-black text-amber-500 shrink-0">★${p.wins}</span>` : ''}
-                    <button onclick="toggleAI(${idx})" class="text-[10px] font-semibold px-2 py-1 rounded shrink-0 ${p.isAI ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-teal-100 text-teal-700 border border-teal-200'}">${p.isAI ? 'AI' : 'Human'}</button>
-                    ${players.length > 1 ? `<button onclick="removePlayer(${idx})" class="text-xs text-rose-500 hover:text-rose-600 font-bold px-1 shrink-0">remove</button>` : ''}`;
+                        class="flex-1 min-w-0 bg-transparent text-lg text-slate-900 placeholder-slate-400 focus:outline-none font-sans font-black">
+                    ${p.wins ? `<span class="text-sm text-amber-500 shrink-0">★${p.wins}</span>` : ''}
+                    <button onclick="toggleAI(${idx})" class="text-xs px-3 py-1.5 rounded-xl border-2 border-slate-900 ${p.isAI ? 'bg-amber-300' : 'bg-sky-300'} hover:-translate-y-0.5 shadow-[0_2px_0_#0f172a] active:translate-y-0.5 active:shadow-none transition-all shrink-0">${p.isAI ? 'AI' : 'HUMAN'}</button>
+                    ${players.length > 1 ? `<button onclick="removePlayer(${idx})" class="w-8 h-8 flex items-center justify-center rounded-xl bg-rose-500 border-2 border-slate-900 text-white hover:-translate-y-0.5 shadow-[0_2px_0_#0f172a] active:translate-y-0.5 active:shadow-none transition-all shrink-0">X</button>` : ''}`;
                 c.appendChild(row);
             });
             const maxPlayers = gameMode === 'selfish' ? 1 : 4;   // solo is always a single player
             if (players.length < maxPlayers) {
                 const add = document.createElement('button');
-                add.className = 'w-full flex items-center justify-center p-2 rounded-xl border border-dashed border-indigo-500/40 hover:bg-indigo-50 text-indigo-500 text-xs font-bold transition-all';
-                add.innerText = 'ADD PLAYER';
+                add.className = 'col-span-full flex items-center justify-center p-3 rounded-2xl border-4 border-dashed border-indigo-300 bg-indigo-100 text-indigo-500 text-lg hover:bg-indigo-200 hover:-translate-y-1 transition-all uppercase';
+                add.innerText = '+ ADD PLAYER';
                 add.onclick = addPlayer;
                 c.appendChild(add);
             }
-            document.getElementById('player-count-label').innerText = players.length + (players.length === 1 ? ' player' : ' players');
+            document.getElementById('player-count-label').innerText = `(${players.length}/${maxPlayers})`;
             document.getElementById('battle-note').classList.toggle('hidden', !(gameMode === 'battle' && (players.length < 2 || players.length > 4)));
             Babs.bus.emit('lobby:updated', {});   // NetBridge refreshes the pairing list (see net.js)
         }

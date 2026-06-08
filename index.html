@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>The Babs - Physics Party Game</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
@@ -13,7 +13,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
@@ -24,7 +24,7 @@
         ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 3px; }
     </style>
 </head>
-<body class="h-screen w-screen overflow-hidden text-slate-800">
+<body class="h-screen w-screen overflow-hidden text-slate-100">
 
     <!-- Looping background music (kept low) -->
     <audio id="bgm" loop preload="auto"><source src="assets/theme.mp3" type="audio/mpeg"></audio>
@@ -37,7 +37,7 @@
 
 
     <!-- FULLSCREEN ARENA -->
-    <div id="arena" class="relative w-screen h-screen overflow-hidden select-none bg-sky-200">
+    <div id="arena" class="relative w-screen h-screen overflow-hidden select-none bg-slate-900/80">
 
         <!-- One or two play lanes (each its own canvas) -->
         <!-- 1-4 play lanes, each its own canvas, built in JS -->
@@ -83,56 +83,63 @@
         <div id="battle-controls" class="absolute bottom-0 inset-x-0 z-20 px-2 pb-4 pt-10 hidden items-end justify-between gap-2 pointer-events-none bg-gradient-to-t from-sky-900/15 to-transparent"></div>
 
         <!-- LOBBY MODAL -->
-        <div id="lobby-modal" class="absolute inset-0 bg-sky-100/95 flex flex-col justify-center items-center z-40 p-4 sm:p-8 overflow-y-auto transition-all duration-500">
-            <div class="max-w-xl w-full text-center space-y-5 my-auto">
-                <div class="space-y-2">
-                    <h2 class="text-4xl sm:text-5xl font-extrabold bubbly-font text-indigo-900 drop-shadow-sm">THE BABS</h2>
-                    <p class="text-slate-600 text-sm font-medium">Stack the tallest tower. Miss the stack and you fall.</p>
-                </div>
+        <div id="lobby-modal" class="absolute inset-0 bg-sky-400 flex flex-col justify-center items-center z-40 p-4 sm:p-8 overflow-y-auto transition-all duration-500 font-black text-slate-900 bubbly-font">
+            <!-- Big Title -->
+            <div class="mb-8 transform -rotate-2">
+                <h2 class="text-7xl sm:text-9xl text-white drop-shadow-[0_8px_0_#1e3a8a] stroke-slate-900 stroke-2" style="-webkit-text-stroke: 4px #1e3a8a;">THE BABS</h2>
+            </div>
 
-                <div class="grid grid-cols-3 gap-3">
-                    <button onclick="setMode('selfish')" id="btn-mode-selfish" class="p-3 rounded-2xl border-2 border-indigo-500 bg-white shadow-sm text-left hover:scale-105 transition-all">
-                        <div class="font-black text-sm text-indigo-950">Solo</div>
-                        <div class="text-[10px] text-slate-500 leading-tight">One player, one tower. Climb as high as you can.</div>
+            <!-- Main Content Grid -->
+            <div class="max-w-5xl w-full grid grid-cols-1 md:grid-cols-12 gap-6">
+                
+                <!-- Left Column: Modes -->
+                <div class="md:col-span-4 flex flex-col gap-4">
+                    <button onclick="setMode('selfish')" id="btn-mode-selfish" class="p-4 rounded-3xl border-4 border-slate-900 bg-amber-400 shadow-[0_8px_0_#0f172a] text-center hover:-translate-y-1 hover:shadow-[0_12px_0_#0f172a] active:translate-y-2 active:shadow-none transition-all">
+                        <div class="text-2xl tracking-wide uppercase">Solo Mode</div>
+                        <div class="text-xs text-slate-800 font-bold mt-1 font-sans">Build alone. No rivals.</div>
                     </button>
-                    <button onclick="setMode('battle')" id="btn-mode-battle" class="p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50 text-left hover:scale-105 transition-all opacity-70">
-                        <div class="font-black text-sm text-slate-800">Battle</div>
-                        <div class="text-[10px] text-slate-500 leading-tight">2-4 players, a tower each, side by side. Combos sabotage a rival.</div>
+                    <button onclick="setMode('battle')" id="btn-mode-battle" class="p-4 rounded-3xl border-4 border-slate-900 bg-white shadow-[0_8px_0_#0f172a] text-center hover:-translate-y-1 hover:shadow-[0_12px_0_#0f172a] active:translate-y-2 active:shadow-none transition-all opacity-80">
+                        <div class="text-2xl tracking-wide uppercase">Battle Mode</div>
+                        <div class="text-xs text-slate-500 font-bold mt-1 font-sans">2-4 players. Sabotage others!</div>
                     </button>
-                    <button onclick="setMode('coop')" id="btn-mode-coop" class="p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50 text-left hover:scale-105 transition-all opacity-70">
-                        <div class="font-black text-sm text-slate-800">Co-op</div>
-                        <div class="text-[10px] text-slate-500 leading-tight">Take turns on one shared tower.</div>
+                    <button onclick="setMode('coop')" id="btn-mode-coop" class="p-4 rounded-3xl border-4 border-slate-900 bg-white shadow-[0_8px_0_#0f172a] text-center hover:-translate-y-1 hover:shadow-[0_12px_0_#0f172a] active:translate-y-2 active:shadow-none transition-all opacity-80">
+                        <div class="text-2xl tracking-wide uppercase">Co-op Mode</div>
+                        <div class="text-xs text-slate-500 font-bold mt-1 font-sans">Share one tower together.</div>
                     </button>
                 </div>
 
-                <div class="bg-white/70 border border-indigo-100 rounded-2xl p-4 text-left shadow-sm">
-                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex justify-between">
-                        <span>Players</span>
-                        <span id="player-count-label">1 player</span>
-                    </h3>
-                    <div class="space-y-2" id="lobby-player-slots"></div>
-                    <p id="battle-note" class="text-[11px] text-rose-600 font-semibold mt-2 hidden">Battle needs 2 to 4 players.</p>
-                </div>
+                <!-- Right Column: Settings & Players -->
+                <div class="md:col-span-8 flex flex-col gap-6">
+                    
+                    <!-- Players Panel -->
+                    <div class="bg-indigo-50 border-4 border-slate-900 rounded-3xl p-6 shadow-[0_8px_0_#0f172a]">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl uppercase tracking-wider text-indigo-900">Crew <span id="player-count-label" class="text-indigo-500 text-base">(1/4)</span></h3>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="lobby-player-slots"></div>
+                        <p id="battle-note" class="text-sm text-rose-500 mt-3 hidden">⚠️ Battle needs 2 to 4 players!</p>
+                    </div>
 
-                <!-- Hazard toggles -->
-                <div class="bg-white/70 border border-indigo-100 rounded-2xl p-4 shadow-sm text-left">
-                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Hazards</h3>
-                    <!-- buttons generated from Babs.Hazards by buildHazardToggles() -->
-                    <div id="hazard-toggles" class="grid grid-cols-3 gap-2"></div>
-                    <p class="text-[10px] text-slate-400 mt-2">Junk &amp; Zap are combo sabotages (Battle only).</p>
-                </div>
+                    <!-- Hazards & Phones -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div class="bg-rose-50 border-4 border-slate-900 rounded-3xl p-6 shadow-[0_8px_0_#0f172a]">
+                            <h3 class="text-xl uppercase tracking-wider text-rose-900 mb-4">Hazards</h3>
+                            <div id="hazard-toggles" class="flex flex-col gap-3"></div>
+                        </div>
 
-                <!-- Phone controllers over WiFi, peer-to-peer, no server -->
-                <div class="bg-white/70 border border-indigo-100 rounded-2xl p-4 shadow-sm text-left">
-                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Phone controllers (WiFi, no server)</h3>
-                    <p class="text-[11px] text-slate-500 mb-3">Pair a phone to each player. On the phone, open this same page and tap the join button, then scan to connect. Same WiFi required.</p>
-                    <div id="pair-list" class="flex flex-col gap-2"></div>
-                    <button onclick="enterJoinMode()" class="mt-3 w-full py-2 rounded-xl border border-indigo-300 text-indigo-600 font-bold text-sm hover:bg-indigo-50 transition-all">This phone is joining a game</button>
-                </div>
+                        <div class="bg-emerald-50 border-4 border-slate-900 rounded-3xl p-6 shadow-[0_8px_0_#0f172a]">
+                            <h3 class="text-xl uppercase tracking-wider text-emerald-900 mb-2">Controllers</h3>
+                            <p class="text-xs font-sans font-bold text-emerald-700 mb-4">Use phones on same WiFi.</p>
+                            <div id="pair-list" class="flex flex-col gap-2 mb-4"></div>
+                            <button onclick="enterJoinMode()" class="w-full py-3 rounded-2xl border-4 border-slate-900 bg-emerald-400 text-slate-900 text-sm hover:-translate-y-1 hover:shadow-[0_4px_0_#0f172a] active:translate-y-1 active:shadow-none transition-all uppercase">Join via Phone</button>
+                        </div>
+                    </div>
 
-                <button onclick="startGame()" class="w-full py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 shadow-md hover:scale-[1.02] active:scale-95 transition-all bubbly-font uppercase tracking-wider">
-                    START
-                </button>
+                    <!-- Start Button -->
+                    <button onclick="startGame()" class="w-full py-6 rounded-3xl text-4xl text-white bg-gradient-to-b from-green-400 to-green-600 border-4 border-slate-900 shadow-[0_12px_0_#0f172a] hover:-translate-y-2 hover:shadow-[0_16px_0_#0f172a] active:translate-y-3 active:shadow-none transition-all uppercase tracking-widest mt-2" style="-webkit-text-stroke: 2px #0f172a;">
+                        PLAY NOW
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -153,19 +160,18 @@
 
         <!-- HOST PAIRING MODAL: show offer QR, then scan the phone's reply -->
         <div id="pair-modal" class="absolute inset-0 bg-slate-900/95 hidden flex-col justify-center items-center z-50 p-6 text-center">
-            <div class="max-w-sm w-full space-y-4 text-white">
-                <h2 class="text-2xl font-black bubbly-font" id="pair-title">Pair Player 1</h2>
-                <div id="pair-step1">
-                    <p class="text-sm text-slate-300 mb-3">1. On the phone, open this page, tap "This phone is joining", and scan this code:</p>
-                    <div id="pair-qr" class="bg-white p-3 rounded-2xl inline-block"></div>
-                    <button onclick="pairStartScan()" class="mt-4 w-full py-3 rounded-xl font-black bubbly-font bg-emerald-500 hover:bg-emerald-400">2. SCAN PHONE'S REPLY</button>
+            <div class="max-w-xl w-full space-y-6 text-white font-black bubbly-font">
+                <h2 class="text-3xl font-black text-amber-400" id="pair-title">Pair Player 1</h2>
+                
+                <p class="text-sm text-slate-300 mb-2 font-sans">1. Scan this QR with your phone. &nbsp;&nbsp; 2. Hold the phone's reply to this camera.</p>
+                
+                <div class="flex flex-col sm:flex-row gap-6 items-center justify-center">
+                    <div id="pair-qr" class="bg-white p-3 rounded-3xl border-4 border-slate-900 shadow-[0_8px_0_#0f172a]"></div>
+                    <video id="pair-video" class="w-48 rounded-3xl bg-black border-4 border-slate-900 shadow-[0_8px_0_#0f172a]" playsinline muted></video>
                 </div>
-                <div id="pair-step2" class="hidden">
-                    <p class="text-sm text-slate-300 mb-2">Point this camera at the phone's reply code:</p>
-                    <video id="pair-video" class="w-full rounded-2xl bg-black" playsinline muted></video>
-                </div>
-                <p id="pair-status" class="text-xs text-amber-300 font-bold"></p>
-                <button onclick="closePairModal()" class="w-full py-2 rounded-xl border border-slate-600 text-slate-300 text-sm">Cancel</button>
+
+                <p id="pair-status" class="text-xs text-amber-300 font-bold h-4 font-sans"></p>
+                <button onclick="closePairModal()" class="w-full sm:w-auto px-8 py-3 rounded-2xl border-4 border-slate-900 bg-rose-500 text-white shadow-[0_4px_0_#0f172a] hover:-translate-y-1 hover:shadow-[0_6px_0_#0f172a] active:translate-y-1 active:shadow-none transition-all mt-4">CANCEL</button>
             </div>
         </div>
 
@@ -188,15 +194,26 @@
             </div>
         </div>
 
+        <!-- CONTROLLER NAME PROMPT -->
+        <div id="controller-name-prompt" class="absolute inset-0 bg-slate-900 hidden flex-col justify-center items-center z-50 p-6 text-center">
+            <div class="max-w-sm w-full space-y-4 text-white">
+                <h2 class="text-3xl font-black bubbly-font text-indigo-400">You're in!</h2>
+                <p class="text-sm text-slate-300">Enter your name to join the crew.</p>
+                <input id="cn-input" maxlength="14" placeholder="Your Name"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center">
+                <button onclick="submitControllerName()" class="w-full py-3 rounded-xl font-black bubbly-font bg-indigo-500 hover:bg-indigo-400">JOIN GAME</button>
+            </div>
+        </div>
+
         <!-- CONTROLLER VIEW (the phone, once paired) -->
         <div id="controller-view" class="absolute inset-0 bg-slate-900 hidden flex-col z-50 p-4 text-white">
             <div class="flex items-center justify-between">
                 <div class="text-xl font-black bubbly-font" id="cv-name">Player</div>
-                <div id="cv-status" class="text-xs font-bold px-2 py-1 rounded bg-emerald-500/20 text-emerald-300">connected</div>
+                <div class="flex gap-2 items-center">
+                    <div id="cv-status" class="text-xs font-bold px-2 py-1 rounded bg-emerald-500/20 text-emerald-300">connected</div>
+                    <button onclick="location.reload()" class="text-xs font-bold px-2 py-1 rounded bg-rose-500/20 text-rose-400">leave</button>
+                </div>
             </div>
-            <input id="cv-nameinput" maxlength="14" placeholder="Type your name"
-                class="mt-2 w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-base font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <p class="text-[11px] text-slate-500 mt-1">This shows up on the big screen.</p>
             <button id="cv-drop" class="flex-1 my-4 rounded-3xl bg-gradient-to-br from-indigo-500 to-indigo-700 active:scale-95 transition-transform flex flex-col items-center justify-center shadow-2xl">
                 <span id="cv-drop-label" class="text-6xl font-black bubbly-font tracking-wider">DROP</span>
                 <span id="cv-drop-sub" class="text-sm text-indigo-100/80 mt-2">tap to drop your house</span>

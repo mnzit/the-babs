@@ -377,7 +377,7 @@ Babs.LaneRenderer = function (lane) {
             const ctx = this.ctx;
             // gantry beam
             ctx.strokeStyle = '#475569'; ctx.lineWidth = 14;
-            ctx.beginPath(); ctx.moveTo(30, this.lane.pivotY - 20); ctx.lineTo(CANVAS_WIDTH - 30, this.lane.pivotY - 20); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-4000, this.lane.pivotY - 20); ctx.lineTo(CANVAS_WIDTH + 4000, this.lane.pivotY - 20); ctx.stroke();
 
             const swingSpeed = 1.75 + this.lane.successfulDrops * 0.04, thetaMax = 0.52;
             const windAngle = this.lane.currentWind * 0.05;

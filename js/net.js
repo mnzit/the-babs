@@ -157,28 +157,25 @@
             await pc.setLocalDescription(offer);
             await waitIce(pc);
             document.getElementById('pair-title').innerText = 'Pair Player ' + slot;
-            document.getElementById('pair-step1').classList.remove('hidden');
-            document.getElementById('pair-step2').classList.add('hidden');
-            document.getElementById('pair-status').innerText = '';
+            document.getElementById('pair-status').innerText = 'Starting camera...';
             makeQR(document.getElementById('pair-qr'), packSDP(pc.localDescription));
             const modal = document.getElementById('pair-modal');
             modal.classList.remove('hidden'); modal.classList.add('flex');
             window._pairSlot = slot;
-        }
 
-        async function pairStartScan() {
-            document.getElementById('pair-step1').classList.add('hidden');
-            document.getElementById('pair-step2').classList.remove('hidden');
-            document.getElementById('pair-status').innerText = 'scanning...';
             try {
+                if (pairScan) pairScan.stop();
                 pairScan = await scanQR(document.getElementById('pair-video'), async (data) => {
                     try {
-                        const slot = window._pairSlot;
-                        await peers[slot].pc.setRemoteDescription(unpackSDP(data));
+                        const s = window._pairSlot;
+                        await peers[s].pc.setRemoteDescription(unpackSDP(data));
                         document.getElementById('pair-status').innerText = 'reply received, connecting...';
                     } catch (e) { document.getElementById('pair-status').innerText = 'invalid code, try again'; }
                 });
-            } catch (e) { document.getElementById('pair-status').innerText = 'camera blocked: ' + e.message; }
+                document.getElementById('pair-status').innerText = 'Scanning for reply...';
+            } catch (e) { 
+                document.getElementById('pair-status').innerText = 'camera blocked/missing: ' + e.message; 
+            }
         }
 
         function closePairModal() {
@@ -222,7 +219,7 @@
         }
 
         function wireJoinChannel() {
-            joinDC.onopen = () => showControllerView();
+            joinDC.onopen = () => showNamePrompt();
             joinDC.onclose = () => { const s = document.getElementById('cv-status'); if (s) { s.innerText = 'disconnected'; s.className = 'text-xs font-bold px-2 py-1 rounded bg-rose-500/20 text-rose-300'; } };
             joinDC.onmessage = (e) => {
                 let m; try { m = JSON.parse(e.data); } catch (_) { return; }
@@ -253,16 +250,29 @@
             }
         }
 
-        function showControllerView() {
+        window.submitControllerName = function () {
+            const nameInput = document.getElementById('cn-input');
+            const v = nameInput.value.trim();
+            if (v) {
+                cvSend({ a: 'name', n: v });
+                document.getElementById('cv-name').innerText = v;
+            }
+            document.getElementById('controller-name-prompt').classList.add('hidden');
+            document.getElementById('controller-name-prompt').classList.remove('flex');
+            showControllerView();
+        };
+
+        function showNamePrompt() {
             document.getElementById('join-overlay').classList.add('hidden');
+            const prompt = document.getElementById('controller-name-prompt');
+            prompt.classList.remove('hidden'); prompt.classList.add('flex');
+        }
+
+        function showControllerView() {
             const cv = document.getElementById('controller-view');
             cv.classList.remove('hidden'); cv.classList.add('flex');
-            const nameInput = document.getElementById('cv-nameinput');
-            // send whatever name is already typed (so it applies even without further edits)
-            if (nameInput.value.trim()) cvSend({ a: 'name', n: nameInput.value.trim() });
             if (cvWired) return; // only bind listeners once
             cvWired = true;
-            nameInput.addEventListener('input', () => { const v = nameInput.value.trim(); if (v) cvSend({ a: 'name', n: v }); });
             const drop = document.getElementById('cv-drop');
             const fire = (e) => { e.preventDefault(); if (navigator.vibrate) navigator.vibrate(15); cvSend({ a: cvMode === 'again' ? 'playagain' : 'drop' }); };
             drop.addEventListener('touchstart', fire, { passive: false });
