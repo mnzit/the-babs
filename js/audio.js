@@ -1,6 +1,20 @@
 // audio.js — extracted from index.html (P0 mechanical split, verbatim)
+        let isMuted = false;
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            const a = document.getElementById('bgm');
+            if (a) {
+                if (isMuted) a.volume = 0;
+                else a.volume = Babs.CONFIG.audio.bgmVolume;
+            }
+            const btn = document.getElementById('btn-mute');
+            if (btn) btn.innerHTML = isMuted ? '🔇 Muted' : '🔊 Sound On';
+        }
+
         // Fire a one-shot sound effect element at a given volume.
         function playSfx(id, vol) {
+            if (isMuted) return;
             const a = document.getElementById(id);
             if (!a) return;
             try { a.currentTime = 0; a.volume = vol == null ? Babs.CONFIG.audio.sfxVolume : vol; const p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
@@ -26,11 +40,11 @@
             windAlertTimer = setTimeout(function () { el.style.opacity = '0'; }, Babs.CONFIG.wind.alertMs);
         }
         // Start the looping theme quietly (called from the START button, which is a user gesture
-        // so browsers allow playback). Safe to call repeatedly.
+        // browsers allow playback). Safe to call repeatedly.
         function startMusic() {
             const a = document.getElementById('bgm');
             if (!a) return;
-            a.volume = Babs.CONFIG.audio.bgmVolume;
+            a.volume = isMuted ? 0 : Babs.CONFIG.audio.bgmVolume;
             try { a.currentTime = 0; } catch (e) {}
             const p = a.play();
             if (p && p.catch) p.catch(function () {});
