@@ -274,7 +274,16 @@
             window.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); cvSend({ a: 'drop' }); } });
         }
 
-        // refresh the pairing list whenever the lobby updates
-        const _origUpdateLobby = updateLobbyUI;
-        updateLobbyUI = function () { _origUpdateLobby(); buildPairList(); };
+        // ---------------------------------------------------------------------------
+        // NetBridge: the controllers' link to the game. It listens on Babs.bus and
+        // pushes match state to the phones, and refreshes the pairing list when the
+        // lobby changes — so game logic never calls broadcastToControllers directly
+        // and there is no fragile monkey-patch of updateLobbyUI.
+        // ---------------------------------------------------------------------------
+        Babs.NetBridge = (function () {
+            Babs.bus.on('state:playing', function () { broadcastToControllers({ a: 'playing' }); });
+            Babs.bus.on('state:gameover', function () { broadcastToControllers({ a: 'gameover' }); });
+            Babs.bus.on('lobby:updated', function () { buildPairList(); });
+            return { };
+        })();
         buildPairList();

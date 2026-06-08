@@ -85,6 +85,7 @@
             }
             document.getElementById('player-count-label').innerText = players.length + (players.length === 1 ? ' player' : ' players');
             document.getElementById('battle-note').classList.toggle('hidden', !(gameMode === 'battle' && (players.length < 2 || players.length > 4)));
+            Babs.bus.emit('lobby:updated', {});   // NetBridge refreshes the pairing list (see net.js)
         }
 
         function renamePlayer(idx, val) { players[idx].name = val.trim() || ('Player ' + (idx + 1)); }
@@ -131,7 +132,9 @@
                 cv.className = 'w-full h-full block touch-none';
                 wrap.appendChild(cv); lanesEl.appendChild(wrap);
                 const lanePlayers = gameMode === 'battle' ? [players[i] || players[0]] : players.slice();
-                const lane = new Lane(cv, lanePlayers, (lanePlayers[0] || players[0]).color);
+                const lane = new Lane(cv, lanePlayers, (lanePlayers[0] || players[0]).color, {
+                    config: Babs.CONFIG, bus: Babs.bus, houses: Babs.Houses, evaluator: Babs.StackEvaluator
+                });
                 cv.addEventListener('pointerdown', function (e) { e.preventDefault(); lane.drop(); });
                 lanes.push(lane);
             }
@@ -174,7 +177,7 @@
             document.getElementById('gameover-modal').classList.remove('flex');
 
             updateControllerUI();
-            if (typeof broadcastToControllers === 'function') broadcastToControllers({ a: 'playing' });
+            // phones are notified via NetBridge subscribing to 'state:playing' (see net.js)
             lanes.forEach(l => { if (l.player().isAI) l.runAI(); });
 
             if (windTimer) clearTimeout(windTimer);
@@ -347,7 +350,7 @@
                 Babs.StateMachine.to('gameover');
                 const m = document.getElementById('gameover-modal');
                 m.classList.remove('hidden'); m.classList.add('flex');
-                if (typeof broadcastToControllers === 'function') broadcastToControllers({ a: 'gameover' });
+                // phones are notified via NetBridge subscribing to 'state:gameover' (see net.js)
             }
             // solo DOM HUD
             if (gameMode !== 'battle' && lanes[0]) {

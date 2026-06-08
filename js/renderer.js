@@ -174,7 +174,7 @@ Babs.LaneRenderer = function (lane) {
             const face = (sp) => (Math.cos(t * sp + ph) >= 0 ? 1 : -1);
 
             // Type-specific decoration + resident(s) come from the house-type strategy.
-            Babs.Houses.get(type).draw({
+            this.lane.houses.get(type).draw({
                 ctx: ctx, w: w, h: h, k: k, t: t, ph: ph, color: color, st: st, dark: dark,
                 emotion: emotion, isTop: isTop, walk: walk, face: face,
                 block: block, chars: this

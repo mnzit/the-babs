@@ -27,15 +27,24 @@
         // ---------------------------------------------------------------------------
         // Lane: a fully self-contained mini-game (own engine, crane, camera, canvas)
         // ---------------------------------------------------------------------------
-        function Lane(canvas, lanePlayers, accent) {
+        function Lane(canvas, lanePlayers, accent, deps) {
+            // Dependency injection: the lane depends on these abstractions, not on the
+            // global singletons directly (they're just the defaults). Pass mocks to test.
+            deps = deps || {};
+            this.config = deps.config || Babs.CONFIG;
+            this.bus = deps.bus || Babs.bus;
+            this.houses = deps.houses || Babs.Houses;
+            this.evaluator = deps.evaluator || Babs.StackEvaluator;
+            const cfg = this.config;
+
             this.canvas = canvas;
             this.ctx = canvas.getContext('2d');
             this.players = lanePlayers;        // turn order within this lane
             this.currentPlayerIndex = 0;
             this.accent = accent || '#3b82f6';
 
-            this.engine = Engine.create({ gravity: { y: 1.2 } });
-            this.ground = Bodies.rectangle(CANVAS_WIDTH / 2, PLATFORM_Y + 15, CANVAS_WIDTH - 120, 30, { isStatic: true, friction: 1.0 });
+            this.engine = Engine.create({ gravity: { y: cfg.world.gravityY } });
+            this.ground = Bodies.rectangle(CANVAS_WIDTH / 2, PLATFORM_Y + cfg.world.groundThickness / 2, CANVAS_WIDTH - cfg.world.groundInset, cfg.world.groundThickness, { isStatic: true, friction: cfg.world.groundFriction });
             Composite.add(this.engine.world, [this.ground]);
 
             this.blocks = [];
@@ -44,7 +53,7 @@
             this.hanging = null;
             this.isHanging = false;
             this.pending = null; this.pendingFrames = 0;
-            this.pivotY = 50; this.targetPivotY = 50;
+            this.pivotY = cfg.camera.maxPivotY; this.targetPivotY = cfg.camera.maxPivotY;
             this.cameraYOffset = 0; this.targetCameraYOffset = 0;
             this.swingTime = 0;
             this.successfulDrops = 0;
@@ -77,7 +86,7 @@
             b.eyeState = 'neutral';
             b.styleIndex = Math.floor(Math.random() * HOUSE_STYLES.length); // each house looks different
             b.guyPhase = Math.random() * Math.PI * 2;                       // varied character animation
-            Babs.Houses.pickRandom().initBlock(b);                          // pick a house type + seed its props
+            this.houses.pickRandom().initBlock(b);                          // pick a house type + seed its props
             this.hanging = b;
             this.isHanging = true;
         };
@@ -85,7 +94,7 @@
         Lane.prototype.drop = function () {
             if (!matchActive || !this.alive || !this.isHanging || !this.hanging) return;
             if (this.player().isAI && !this._aiTrigger) return;
-            Babs.bus.emit('house:dropped', { lane: this, block: this.hanging });
+            this.bus.emit('house:dropped', { lane: this, block: this.hanging });
             this.isHanging = false;
             this.hanging.isSensor = false;
             Composite.add(this.engine.world, this.hanging);
@@ -118,13 +127,13 @@
 
         Lane.prototype.evaluate = function (block) {
             if (!matchActive || !this.alive) return;
-            const cfg = Babs.CONFIG.evaluate;
+            const cfg = this.config.evaluate;
             const isFirst = this.blocks.length <= 1;
             const supportBlock = isFirst ? null : this.blocks[this.blocks.length - 2];
             const supportX = isFirst ? CANVAS_WIDTH / 2 : supportBlock.position.x;
             const supportW = isFirst ? DEFAULT_BOX_WIDTH : (supportBlock.boxWidth || DEFAULT_BOX_WIDTH);
             const blockH = block.boxHeight || DEFAULT_BOX_HEIGHT;
-            const v = Babs.StackEvaluator.judge({
+            const v = this.evaluator.judge({
                 isFirst: isFirst, hasSupport: !!supportBlock,
                 blockX: block.position.x, blockY: block.position.y, blockH: blockH,
                 supportX: supportX, supportW: supportW, supportY: supportBlock ? supportBlock.position.y : 0,
@@ -133,7 +142,7 @@
             const offset = v.offset, perfect = v.perfect;
 
             if (v.verdict === 'missed') {
-                Babs.bus.emit('house:missed', { lane: this, loser: block.playerCreator });
+                this.bus.emit('house:missed', { lane: this, loser: block.playerCreator });
                 this.toast('MISSED', '#f43f5e');
                 if (v.missedEntirely) {
                     Composite.remove(this.engine.world, block);
@@ -148,7 +157,7 @@
             this.successfulDrops++;
 
             if (perfect) {
-                Babs.bus.emit('house:perfect', { lane: this, block: block });
+                this.bus.emit('house:perfect', { lane: this, block: block });
                 this.combo++;
                 block.eyeState = 'happy'; block.starSparkles = true;
                 if (this.combo >= cfg.comboTarget) {
@@ -159,9 +168,9 @@
                     this.toast('PERFECT', '#10b981');
                 }
             } else {
-                Babs.bus.emit('house:settled', { lane: this, block: block, perfect: false });
+                this.bus.emit('house:settled', { lane: this, block: block, perfect: false });
                 this.combo = 0;
-                if (v.verdict === 'wobbly') { Babs.bus.emit('house:wobbly', { lane: this, block: block, offset: offset }); this.toast('WOBBLY', '#d97706'); block.eyeState = 'panicked'; }
+                if (v.verdict === 'wobbly') { this.bus.emit('house:wobbly', { lane: this, block: block, offset: offset }); this.toast('WOBBLY', '#d97706'); block.eyeState = 'panicked'; }
             }
 
             // Every 50 m (lockEvery blocks): lock the tower and build a wooden scaffold "new level" --
@@ -170,7 +179,7 @@
             if (this.successfulDrops % cfg.lockEvery === 0) {
                 this.blocks.forEach(b => { if (!b.isStatic) Body.setStatic(b, true); });
                 this.addScaffold();
-                this.toast('NEW LEVEL!', '#6366f1'); Babs.bus.emit('level:up', { lane: this, drops: this.successfulDrops });
+                this.toast('NEW LEVEL!', '#6366f1'); this.bus.emit('level:up', { lane: this, drops: this.successfulDrops });
             }
 
             // Battle: pull far enough ahead and your rival is out.
@@ -202,7 +211,7 @@
 
         Lane.prototype.checkCollapse = function () {
             if (!matchActive || !this.alive) return;
-            const cc = Babs.CONFIG.collapse;
+            const cc = this.config.collapse;
             let collapse = false, who = null;
             for (let i = 0; i < this.blocks.length; i++) {
                 const b = this.blocks[i];
@@ -225,14 +234,14 @@
             }
             const live = this.blocks.filter(b => !b.isStatic);
             if (live.length >= cc.tiltCount && live.filter(b => Math.abs(b.angle) > cc.tiltAngle).length >= cc.tiltCount) { collapse = true; who = this.player(); }
-            if (collapse) { Babs.bus.emit('lane:collapsed', { lane: this, who: who }); endLane(this, who); }
+            if (collapse) { this.bus.emit('lane:collapsed', { lane: this, who: who }); endLane(this, who); }
         };
 
         Lane.prototype.queueSpell = function (type) {
             const cost = type === 'anvil' ? 2 : 1;
             const p = this.player();
-            if ((p.spellEnergy || 0) < cost) { this.toast('NO ENERGY', '#ef4444'); Babs.bus.emit('spell:noenergy', { lane: this, type: type }); return; }
-            Babs.bus.emit('spell:queued', { lane: this, type: type });
+            if ((p.spellEnergy || 0) < cost) { this.toast('NO ENERGY', '#ef4444'); this.bus.emit('spell:noenergy', { lane: this, type: type }); return; }
+            this.bus.emit('spell:queued', { lane: this, type: type });
             p.spellEnergy -= cost;
             this.sabotage = type;
             this.toast(this.player().name + ' cast ' + type.toUpperCase(), '#ec4899');
@@ -253,14 +262,14 @@
             Body.setMass(target, target.mass * 5);      // ...but secretly a heavy anvil
             this.flash = 1;
             this.toast((byName || 'Rival') + ' swapped your house for JUNK!', '#ef4444');
-            Babs.bus.emit('sabotage:junk', { lane: this, byName: byName });
+            this.bus.emit('sabotage:junk', { lane: this, byName: byName });
         };
 
         Lane.prototype.spikeWind = function (byName) {
             this.targetWind = (Math.random() < 0.5 ? -1 : 1) * 2.8;
             this.flash = 1;
             this.toast((byName ? byName + "'s " : '') + 'GALE!', '#0891b2');
-            Babs.bus.emit('sabotage:wind', { lane: this, byName: byName });
+            this.bus.emit('sabotage:wind', { lane: this, byName: byName });
         };
 
         // Zap the house they're about to drop -- off the crane or while it's falling -- so they
@@ -275,7 +284,7 @@
                 target = this.hanging; Composite.remove(this.engine.world, this.hanging);
                 this.hanging = null; this.isHanging = false;
             }
-            if (target) { this.spawnExplosion(target.position.x, target.position.y, target.boxWidth || DEFAULT_BOX_WIDTH); Babs.bus.emit('sabotage:zap', { lane: this, byName: byName }); }
+            if (target) { this.spawnExplosion(target.position.x, target.position.y, target.boxWidth || DEFAULT_BOX_WIDTH); this.bus.emit('sabotage:zap', { lane: this, byName: byName }); }
             this.flash = 1;
             this.toast((byName || 'Rival') + ' BLEW UP your house!', '#a855f7');
             const self = this;
@@ -373,7 +382,7 @@
         Lane.prototype.startDemolition = function () {
             this.demolishing = true;
             this.demoState = 'intro'; this._wait = 0;
-            Babs.bus.emit('demolition:start', { lane: this });   // the building starts crashing down
+            this.bus.emit('demolition:start', { lane: this });   // the building starts crashing down
             this.blocks.forEach(b => { b.wasPanicking = true; }); // they're all doomed now
             this.isHanging = false; this.hanging = null;
             this.targetCameraYOffset = 0;        // pan the camera down to the ground
@@ -396,7 +405,7 @@
             this.spawnDebris(block.position.x, block.position.y, block.boxWidth || DEFAULT_BOX_WIDTH);
             Composite.remove(this.engine.world, block);
             const i = this.blocks.indexOf(block); if (i > -1) this.blocks.splice(i, 1);
-            Babs.bus.emit('demolition:step', { lane: this });
+            this.bus.emit('demolition:step', { lane: this });
         };
 
         Lane.prototype.lowestBlock = function () {
