@@ -143,8 +143,7 @@
 
         function startGame() {
             if (gameMode === 'battle' && (players.length < 2 || players.length > 4)) { updateLobbyUI(); return; }
-            playSound('perfect');
-            startMusic();
+            Babs.bus.emit('game:playing', {});
             demoActive = false; demoModalShown = false;
             buildLanes();
             matchActive = true;
@@ -180,7 +179,7 @@
                 const dir = Math.random() < 0.5 ? -1 : 1;
                 gameWind = dir * (0.9 + Math.random() * 0.7);   // 0.9 - 1.6
                 announceWind(gameWind);
-                playWind();
+                Babs.bus.emit('wind:gust', { magnitude: gameWind });
             } else {
                 gameWind = 0;                              // calm
             }
@@ -264,7 +263,7 @@
 
         function resetToLobby() {
             playSound('click');
-            stopMusic();                 // music only plays during a game
+            Babs.bus.emit('game:reset', {});   // stops music
             matchActive = false;
             demoActive = false; demoModalShown = false;
             if (windTimer) { clearInterval(windTimer); windTimer = null; }

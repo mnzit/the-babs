@@ -3,11 +3,11 @@
         function playSfx(id, vol) {
             const a = document.getElementById(id);
             if (!a) return;
-            try { a.currentTime = 0; a.volume = vol == null ? 0.6 : vol; const p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+            try { a.currentTime = 0; a.volume = vol == null ? Babs.CONFIG.audio.sfxVolume : vol; const p = a.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
         }
         // Panic scream, throttled so a whole tower of panicking residents doesn't overlap.
         let panicCooldown = 0;
-        function playPanic() { if (panicCooldown > 0) return; panicCooldown = 40; playSfx('sfx-panic', 0.5); }
+        function playPanic() { if (panicCooldown > 0) return; panicCooldown = Babs.CONFIG.audio.panicCooldownFrames; playSfx('sfx-panic', 0.5); }
         function playCrush() { playSfx('sfx-crush', 0.6); }   // building crashing down
         function playChime() { playSfx('sfx-chime', 0.5); }   // perfect drop
         function playWind() { playSfx('sfx-wind', 0.5); }     // a gust is coming
@@ -23,14 +23,14 @@
             el.className = 'absolute top-[96px] sm:top-[116px] left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full text-white font-black bubbly-font text-sm sm:text-base shadow-lg pointer-events-none ' + (right ? 'bg-cyan-500/90' : 'bg-indigo-500/90');
             el.style.opacity = '1';
             if (windAlertTimer) clearTimeout(windAlertTimer);
-            windAlertTimer = setTimeout(function () { el.style.opacity = '0'; }, 2600);
+            windAlertTimer = setTimeout(function () { el.style.opacity = '0'; }, Babs.CONFIG.wind.alertMs);
         }
         // Start the looping theme quietly (called from the START button, which is a user gesture
         // so browsers allow playback). Safe to call repeatedly.
         function startMusic() {
             const a = document.getElementById('bgm');
             if (!a) return;
-            a.volume = 0.12;
+            a.volume = Babs.CONFIG.audio.bgmVolume;
             try { a.currentTime = 0; } catch (e) {}
             const p = a.play();
             if (p && p.catch) p.catch(function () {});
@@ -117,3 +117,34 @@
                 }
             } catch (e) { /* ignore */ }
         }
+
+        // ---------------------------------------------------------------------------
+        // AudioSystem: the ONLY place that turns game events into sound. Game logic
+        // emits domain events on Babs.bus; this maps each to the right cue. Adding or
+        // muting a sound is a one-line change here, with no edits to gameplay code.
+        // ---------------------------------------------------------------------------
+        Babs.AudioSystem = (function () {
+            const bus = Babs.bus;
+            const map = {
+                'house:dropped':    () => playSound('drop'),
+                'house:perfect':    () => { playSound('perfect'); playChime(); },
+                'house:settled':    () => playSound('hit'),
+                'house:wobbly':     () => playSound('wobble'),
+                'house:missed':     () => playSound('wobble'),
+                'level:up':         () => playSound('spell'),
+                'lane:collapsed':   () => playSound('collapse'),
+                'lane:panic':       () => playPanic(),
+                'sabotage:junk':    () => playSound('wobble'),
+                'sabotage:wind':    () => playSound('wobble'),
+                'sabotage:zap':     () => playExplode(),
+                'spell:queued':     () => playSound('spell'),
+                'spell:noenergy':   () => playSound('wobble'),
+                'demolition:start': () => { playCrush(); playPanic(); },
+                'demolition:step':  () => playSound('collapse'),
+                'wind:gust':        () => playWind(),
+                'game:playing':     () => { playSound('perfect'); startMusic(); },
+                'game:reset':       () => stopMusic()
+            };
+            for (const evt in map) bus.on(evt, map[evt]);
+            return { map: map };
+        })();

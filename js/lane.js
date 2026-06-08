@@ -63,7 +63,7 @@
         Lane.prototype.drop = function () {
             if (!matchActive || !this.alive || !this.isHanging || !this.hanging) return;
             if (this.player().isAI && !this._aiTrigger) return;
-            playSound('drop');
+            Babs.bus.emit('house:dropped', { lane: this, block: this.hanging });
             this.isHanging = false;
             this.hanging.isSensor = false;
             Composite.add(this.engine.world, this.hanging);
@@ -108,7 +108,7 @@
             const notOnTop = supportBlock && block.position.y > supportBlock.position.y - blockH * 0.4;
 
             if (missedEntirely || offset > maxStackOffset || notOnTop) {
-                playSound('wobble');
+                Babs.bus.emit('house:missed', { lane: this, loser: block.playerCreator });
                 this.toast('MISSED', '#f43f5e');
                 if (missedEntirely) {
                     Composite.remove(this.engine.world, block);
@@ -123,8 +123,7 @@
             this.successfulDrops++;
 
             if (perfect) {
-                playSound('perfect');
-                playChime();
+                Babs.bus.emit('house:perfect', { lane: this, block: block });
                 this.combo++;
                 block.eyeState = 'happy'; block.starSparkles = true;
                 if (this.combo >= 3) {
@@ -135,9 +134,9 @@
                     this.toast('PERFECT', '#10b981');
                 }
             } else {
-                playSound('hit');
+                Babs.bus.emit('house:settled', { lane: this, block: block, perfect: false });
                 this.combo = 0;
-                if (offset > 35) { playSound('wobble'); this.toast('WOBBLY', '#d97706'); block.eyeState = 'panicked'; }
+                if (offset > 35) { Babs.bus.emit('house:wobbly', { lane: this, block: block, offset: offset }); this.toast('WOBBLY', '#d97706'); block.eyeState = 'panicked'; }
             }
 
             // Every 50 m (5 blocks): lock the tower and build a wooden scaffold "new level" -- a
@@ -146,7 +145,7 @@
             if (this.successfulDrops % 5 === 0) {
                 this.blocks.forEach(b => { if (!b.isStatic) Body.setStatic(b, true); });
                 this.addScaffold();
-                this.toast('NEW LEVEL!', '#6366f1'); playSound('spell');
+                this.toast('NEW LEVEL!', '#6366f1'); Babs.bus.emit('level:up', { lane: this, drops: this.successfulDrops });
             }
 
             // Battle: pull far enough ahead and your rival is out.
@@ -200,14 +199,14 @@
             }
             const live = this.blocks.filter(b => !b.isStatic);
             if (live.length >= 3 && live.filter(b => Math.abs(b.angle) > 0.48).length >= 3) { collapse = true; who = this.player(); }
-            if (collapse) { playSound('collapse'); endLane(this, who); }
+            if (collapse) { Babs.bus.emit('lane:collapsed', { lane: this, who: who }); endLane(this, who); }
         };
 
         Lane.prototype.queueSpell = function (type) {
             const cost = type === 'anvil' ? 2 : 1;
             const p = this.player();
-            if ((p.spellEnergy || 0) < cost) { this.toast('NO ENERGY', '#ef4444'); playSound('wobble'); return; }
-            playSound('spell');
+            if ((p.spellEnergy || 0) < cost) { this.toast('NO ENERGY', '#ef4444'); Babs.bus.emit('spell:noenergy', { lane: this, type: type }); return; }
+            Babs.bus.emit('spell:queued', { lane: this, type: type });
             p.spellEnergy -= cost;
             this.sabotage = type;
             this.toast(this.player().name + ' cast ' + type.toUpperCase(), '#ec4899');
@@ -228,14 +227,14 @@
             Body.setMass(target, target.mass * 5);      // ...but secretly a heavy anvil
             this.flash = 1;
             this.toast((byName || 'Rival') + ' swapped your house for JUNK!', '#ef4444');
-            playSound('wobble');
+            Babs.bus.emit('sabotage:junk', { lane: this, byName: byName });
         };
 
         Lane.prototype.spikeWind = function (byName) {
             this.targetWind = (Math.random() < 0.5 ? -1 : 1) * 2.8;
             this.flash = 1;
             this.toast((byName ? byName + "'s " : '') + 'GALE!', '#0891b2');
-            playSound('wobble');
+            Babs.bus.emit('sabotage:wind', { lane: this, byName: byName });
         };
 
         // Zap the house they're about to drop -- off the crane or while it's falling -- so they
@@ -250,7 +249,7 @@
                 target = this.hanging; Composite.remove(this.engine.world, this.hanging);
                 this.hanging = null; this.isHanging = false;
             }
-            if (target) { this.spawnExplosion(target.position.x, target.position.y, target.boxWidth || DEFAULT_BOX_WIDTH); playExplode(); }
+            if (target) { this.spawnExplosion(target.position.x, target.position.y, target.boxWidth || DEFAULT_BOX_WIDTH); Babs.bus.emit('sabotage:zap', { lane: this, byName: byName }); }
             this.flash = 1;
             this.toast((byName || 'Rival') + ' BLEW UP your house!', '#a855f7');
             const self = this;
@@ -348,8 +347,7 @@
         Lane.prototype.startDemolition = function () {
             this.demolishing = true;
             this.demoState = 'intro'; this._wait = 0;
-            playCrush();   // the building starts crashing down
-            playPanic();
+            Babs.bus.emit('demolition:start', { lane: this });   // the building starts crashing down
             this.blocks.forEach(b => { b.wasPanicking = true; }); // they're all doomed now
             this.isHanging = false; this.hanging = null;
             this.targetCameraYOffset = 0;        // pan the camera down to the ground
@@ -372,7 +370,7 @@
             this.spawnDebris(block.position.x, block.position.y, block.boxWidth || DEFAULT_BOX_WIDTH);
             Composite.remove(this.engine.world, block);
             const i = this.blocks.indexOf(block); if (i > -1) this.blocks.splice(i, 1);
-            playSound('collapse');
+            Babs.bus.emit('demolition:step', { lane: this });
         };
 
         Lane.prototype.lowestBlock = function () {
@@ -763,7 +761,7 @@
                 const panic = this.demolishing || Math.abs(b.angle) > 0.22 || Math.abs(b.angularSpeed || 0) > 0.06;
                 // Scream only on a real "about to fall" tilt (or demolition), edge-triggered.
                 const screamWorthy = this.demolishing || Math.abs(b.angle) > 0.3;
-                if (screamWorthy && !b.wasPanicking) playPanic();
+                if (screamWorthy && !b.wasPanicking) Babs.bus.emit('lane:panic', { lane: this, block: b });
                 b.wasPanicking = screamWorthy;
                 this.drawHouse(b, panic ? 'panic' : 'idle', b === topBlock);
                 if (b.starSparkles) this.drawSparkles(b.position.x, b.position.y);
