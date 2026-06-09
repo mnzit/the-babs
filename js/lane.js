@@ -100,13 +100,13 @@
             this.hanging.isSensor = false;
             Composite.add(this.engine.world, this.hanging);
             const cr = this.config.crane;
-            const swingSpeed = cr.swingBase + this.successfulDrops * cr.swingPerDrop;
+            const swingSpeed = (cr.swingBase + this.successfulDrops * cr.swingPerDrop) * this.config.speed.pendulum;
             const thetaMax = cr.thetaMax;
             const theta = thetaMax * Math.sin(this.swingTime * swingSpeed);
             const thetaPrime = thetaMax * swingSpeed * Math.cos(this.swingTime * swingSpeed);
             let vx = ropeLength * thetaPrime * Math.cos(theta) * cr.vxFactor;
             vx = Math.max(-cr.vxClamp, Math.min(cr.vxClamp, vx));
-            Body.setVelocity(this.hanging, { x: vx, y: cr.dropVelocityY });
+            Body.setVelocity(this.hanging, { x: vx, y: cr.dropVelocityY * this.config.speed.drop });
             this.blocks.push(this.hanging);
             const dropped = this.hanging;
             this.hanging = null;
@@ -372,7 +372,9 @@
                 const at = { x: this.pending.position.x, y: this.pending.position.y - ph * wnd.forceYOffset };
                 Body.applyForce(this.pending, at, { x: this.currentWind * wnd.force * this.pending.mass, y: 0 });
             }
-            Engine.update(this.engine, 1000 / 60);
+            // drop-speed multiplier scales fall acceleration live (lobby slider)
+            this.engine.gravity.y = this.config.world.gravityY * this.config.speed.drop;
+            Engine.update(this.engine, this.config.timing.fixedStepMs);
             this.checkSettle();
             this.checkCollapse();
             this.swingTime += cam.swingTimeStep;
@@ -385,7 +387,7 @@
             this.blocks.forEach(b => { if (b === this.pending) return; const t = b.position.y - (b.boxHeight || DEFAULT_BOX_HEIGHT) / 2; if (t < top) top = t; });
             
             if (this.alive && this.blocks.length > 1) {
-                this.autoScrollOffset = (this.autoScrollOffset || 0) + 0.35; // auto-scroll speed
+                this.autoScrollOffset = (this.autoScrollOffset || 0) + cam.autoScrollSpeed; // survival camera creep
             } else {
                 this.autoScrollOffset = 0;
             }

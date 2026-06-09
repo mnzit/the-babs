@@ -126,6 +126,31 @@
                         <p id="battle-note" class="text-sm text-rose-500 mt-3 hidden">⚠️ Battle needs 2 to 4 players!</p>
                     </div>
 
+                    <!-- Speed / Tempo -->
+                    <div class="bg-amber-50 border-4 border-slate-900 rounded-3xl p-6 shadow-[0_8px_0_#0f172a]">
+                        <h3 class="text-xl uppercase tracking-wider text-amber-900 mb-4">Tempo</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <label class="flex flex-col gap-2">
+                                <span class="flex justify-between items-center text-sm uppercase tracking-wide text-amber-900">
+                                    <span>🏠 Drop Speed</span>
+                                    <span id="speed-drop-val" class="text-amber-600 bubbly-font">1.0×</span>
+                                </span>
+                                <input id="speed-drop" type="range" min="0.5" max="2" step="0.1" value="1"
+                                    oninput="setSpeed('drop', this.value)"
+                                    class="w-full accent-amber-500 cursor-pointer">
+                            </label>
+                            <label class="flex flex-col gap-2">
+                                <span class="flex justify-between items-center text-sm uppercase tracking-wide text-amber-900">
+                                    <span>🪝 Swing Speed</span>
+                                    <span id="speed-pendulum-val" class="text-amber-600 bubbly-font">1.0×</span>
+                                </span>
+                                <input id="speed-pendulum" type="range" min="0.5" max="2" step="0.1" value="1"
+                                    oninput="setSpeed('pendulum', this.value)"
+                                    class="w-full accent-amber-500 cursor-pointer">
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Hazards & Phones -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div class="bg-rose-50 border-4 border-slate-900 rounded-3xl p-6 shadow-[0_8px_0_#0f172a]">

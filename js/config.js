@@ -17,6 +17,14 @@ Babs.CONFIG = {
   },
   // ---- the dropped house ("box") base size (shrink rule still scales it) ----
   box: { width: 137, height: 81 },
+  // ---- player-tunable speed multipliers (live, driven by the lobby sliders) ----
+  //      drop     = how fast a released house falls (engine gravity + initial kick)
+  //      pendulum = crane swing angular speed (visual swing + drop trajectory stay in sync)
+  speed: { drop: 1.0, pendulum: 1.0 },
+  // ---- frame-rate-independent simulation: advance the sim in fixed real-time slices
+  //      so wall-clock game speed is identical on a 60Hz laptop, a 144Hz monitor, and
+  //      under heavy 4-lane load. maxStepsPerFrame caps catch-up after a stall/tab-switch.
+  timing: { fixedStepMs: 1000 / 60, maxStepsPerFrame: 5, maxFrameMs: 250 },
   // ---- swinging crane / pendulum + drop kinematics ----
   crane: {
     pivotX: 275,            // CANVAS_WIDTH / 2
@@ -30,7 +38,8 @@ Babs.CONFIG = {
   // ---- camera / pivot follow + screen-shake flash ----
   camera: {
     swingTimeStep: 0.013, windLerp: 0.03, pivotLerp: 0.08, cameraLerp: 0.08,
-    restAnchor: 470, maxPivotY: 50, flashDecay: 0.04
+    restAnchor: 470, maxPivotY: 50, flashDecay: 0.04,
+    autoScrollSpeed: 0.35   // survival camera creep per fixed step (rise that pushes you off the bottom)
   },
   // ---- houses shrink as you climb: full < 200m, then -10% per 100m (min 40%) ----
   shrink: { fullBelow: 200, stepMeters: 100, stepAmount: 0.1, min: 0.4, metersPerDrop: 10 },

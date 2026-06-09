@@ -486,8 +486,9 @@ Babs.LaneRenderer = function (lane) {
             ctx.strokeStyle = '#475569'; ctx.lineWidth = 14;
             ctx.beginPath(); ctx.moveTo(-4000, this.lane.pivotY - 20); ctx.lineTo(CANVAS_WIDTH + 4000, this.lane.pivotY - 20); ctx.stroke();
 
-            const swingSpeed = 1.75 + this.lane.successfulDrops * 0.04, thetaMax = 0.52;
-            const windAngle = this.lane.currentWind * 0.05;
+            const cr = this.lane.config.crane;
+            const swingSpeed = (cr.swingBase + this.lane.successfulDrops * cr.swingPerDrop) * this.lane.config.speed.pendulum, thetaMax = cr.thetaMax;
+            const windAngle = this.lane.currentWind * cr.windAngleFactor;
             const swingAngle = thetaMax * Math.sin(this.lane.swingTime * swingSpeed) + windAngle;
             const bx = pivotX + ropeLength * Math.sin(swingAngle);
             const by = this.lane.pivotY + ropeLength * Math.cos(swingAngle);

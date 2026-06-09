@@ -36,6 +36,32 @@
                 el.innerHTML = `<span>${h.label}</span> <span>${h.enabled ? 'ON' : 'OFF'}</span>`;
             });
         }
+        // ---- Speed sliders (drop fall-speed + crane swing) — write straight to CONFIG,
+        //      persist across reloads, and apply live to any running/idle lane. ----
+        const SPEED_KEYS = { drop: 'speed-drop', pendulum: 'speed-pendulum' };
+        function setSpeed(kind, value) {
+            const v = Math.max(0.5, Math.min(2, parseFloat(value) || 1));
+            Babs.CONFIG.speed[kind] = v;
+            try { localStorage.setItem('babs.speed.' + kind, String(v)); } catch (e) {}
+            syncSpeedUI();
+        }
+        function loadSpeedSettings() {
+            ['drop', 'pendulum'].forEach(kind => {
+                try {
+                    const saved = parseFloat(localStorage.getItem('babs.speed.' + kind));
+                    if (!isNaN(saved)) Babs.CONFIG.speed[kind] = Math.max(0.5, Math.min(2, saved));
+                } catch (e) {}
+            });
+        }
+        function syncSpeedUI() {
+            ['drop', 'pendulum'].forEach(kind => {
+                const v = Babs.CONFIG.speed[kind];
+                const slider = document.getElementById(SPEED_KEYS[kind]);
+                const label = document.getElementById(SPEED_KEYS[kind] + '-val');
+                if (slider && parseFloat(slider.value) !== v) slider.value = v;
+                if (label) label.innerText = v.toFixed(1) + '×';
+            });
+        }
         let lanes = [];
         let windTimer = null;
 
@@ -112,9 +138,11 @@
         let canvas0, canvas1;
 
         window.onload = function () {
+            loadSpeedSettings();
             buildLanes(); // idle background
             buildHazardToggles();
             updateLobbyUI();
+            syncSpeedUI();
             requestAnimationFrame(gameLoop);
 
             // P1 = Space, P2 = Enter (the rest tap their own tower or a button, or use a phone)
@@ -345,29 +373,45 @@
             else { document.getElementById('ctrl-turn-prompt').innerText = 'Tap anywhere to drop!'; if (hint) hint.style.opacity = '1'; }
         }
 
-        function gameLoop() {
+        // One fixed simulation slice. Advancing physics/swing/auto-scroll in here (not in the
+        // render loop) is what makes the game run at the SAME wall-clock speed regardless of
+        // display refresh rate (60Hz vs 144Hz) or per-frame render cost (solo vs 4 lanes).
+        function simulateStep() {
             if (panicCooldown > 0) panicCooldown--;
-            
+
             let globalMaxCamY = 0;
             lanes.forEach(l => {
                 if (matchActive && l.alive) {
                     l.updatePhysics();
-                    if (l.targetCameraYOffset > globalMaxCamY) {
-                        globalMaxCamY = l.targetCameraYOffset;
-                    }
+                    if (l.targetCameraYOffset > globalMaxCamY) globalMaxCamY = l.targetCameraYOffset;
                 }
                 else if (l.demolishing) l.updateDemolition();
             });
-            
+
+            // multiplayer camera sync: the fastest tower drags everyone's camera up together
             if (matchActive && globalMaxCamY > 0) {
-                lanes.forEach(l => {
-                    if (l.alive) l.targetCameraYOffset = globalMaxCamY;
-                });
+                lanes.forEach(l => { if (l.alive) l.targetCameraYOffset = globalMaxCamY; });
             }
-            
-            lanes.forEach(l => {
-                l.render();
-            });
+        }
+
+        let _lastFrameMs = null;
+        let _simAccumulator = 0;
+        function gameLoop(now) {
+            const tm = Babs.CONFIG.timing;
+            if (now == null) now = (typeof performance !== 'undefined' ? performance.now() : 0);
+            if (_lastFrameMs == null) _lastFrameMs = now;
+            // clamp the real delta so a tab-switch / GC stall can't dump a huge backlog of steps
+            const frameMs = Math.min(now - _lastFrameMs, tm.maxFrameMs);
+            _lastFrameMs = now;
+            _simAccumulator += frameMs;
+
+            // run a whole number of fixed steps to consume the real time that elapsed
+            let steps = Math.floor(_simAccumulator / tm.fixedStepMs);
+            if (steps > tm.maxStepsPerFrame) { steps = tm.maxStepsPerFrame; _simAccumulator = 0; }
+            else _simAccumulator -= steps * tm.fixedStepMs;
+            for (let s = 0; s < steps; s++) simulateStep();
+
+            lanes.forEach(l => l.render());
             // once every lane has finished crumbling, reveal the game-over screen
             if (Babs.StateMachine.is('demolition') && lanes.length && lanes.every(l => !l.demolishing)) {
                 Babs.StateMachine.to('gameover');
