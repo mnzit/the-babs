@@ -1,12 +1,12 @@
 # Graph Report - /Users/manjitshakya/projects/towergame  (2026-06-09)
 
 ## Corpus Check
-- 9 files · ~24,850 words
+- 9 files · ~25,031 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 89 nodes · 139 edges · 15 communities detected
-- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 18 edges (avg confidence: 0.8)
+- 90 nodes · 142 edges · 15 communities detected
+- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 19 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
@@ -27,8 +27,8 @@
 - [[_COMMUNITY_Community 14|Community 14]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `updateLobbyUI()` - 9 edges
-2. `playSound()` - 8 edges
+1. `updateLobbyUI()` - 10 edges
+2. `playSound()` - 9 edges
 3. `startGame()` - 7 edges
 4. `hostPair()` - 6 edges
 5. `joinFromOffer()` - 6 edges
@@ -53,12 +53,12 @@
 ## Communities
 
 ### Community 0 - "Community 0"
-Cohesion: 0.22
-Nodes (9): initAudio(), playChime(), playCrush(), playExplode(), playPanic(), playSfx(), playWind(), queueSpell() (+1 more)
-
-### Community 1 - "Community 1"
 Cohesion: 0.18
 Nodes (3): buildPairList(), markSlotConnected(), slotCount()
+
+### Community 1 - "Community 1"
+Cohesion: 0.22
+Nodes (9): initAudio(), playChime(), playCrush(), playExplode(), playPanic(), playSfx(), playWind(), queueSpell() (+1 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.24
@@ -73,8 +73,8 @@ Cohesion: 0.43
 Nodes (7): b45encode(), hostPair(), joinFromOffer(), makeQR(), packSDP(), waitIce(), watchIce()
 
 ### Community 5 - "Community 5"
-Cohesion: 0.6
-Nodes (6): playSound(), addPlayer(), removePlayer(), setMode(), toggleAI(), updateLobbyUI()
+Cohesion: 0.52
+Nodes (7): playSound(), addPlayer(), removePlayer(), resetScores(), setMode(), toggleAI(), updateLobbyUI()
 
 ### Community 6 - "Community 6"
 Cohesion: 0.47
@@ -102,11 +102,11 @@ Nodes (2): b45decode(), unpackSDP()
 
 ### Community 12 - "Community 12"
 Cohesion: 1.0
-Nodes (2): buildLanes(), resetToLobby()
+Nodes (0): 
 
 ### Community 13 - "Community 13"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (2): buildLanes(), resetToLobby()
 
 ### Community 14 - "Community 14"
 Cohesion: 1.0
@@ -117,9 +117,9 @@ Nodes (0):
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 11`** (2 nodes): `b45decode()`, `unpackSDP()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 12`** (2 nodes): `buildLanes()`, `resetToLobby()`
+- **Thin community `Community 12`** (2 nodes): `shrinkScale()`, `config.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 13`** (2 nodes): `shrinkScale()`, `config.js`
+- **Thin community `Community 13`** (2 nodes): `buildLanes()`, `resetToLobby()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 14`** (1 nodes): `events.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
@@ -127,13 +127,13 @@ Nodes (0):
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `setPlayerName()` connect `Community 8` to `Community 1`, `Community 5`?**
-  _High betweenness centrality (0.195) - this node is a cross-community bridge._
-- **Why does `updateLobbyUI()` connect `Community 5` to `Community 8`, `Community 2`, `Community 3`, `Community 12`?**
-  _High betweenness centrality (0.150) - this node is a cross-community bridge._
-- **Why does `queueSpell()` connect `Community 0` to `Community 3`?**
-  _High betweenness centrality (0.143) - this node is a cross-community bridge._
+- **Why does `setPlayerName()` connect `Community 8` to `Community 0`, `Community 5`?**
+  _High betweenness centrality (0.197) - this node is a cross-community bridge._
+- **Why does `updateLobbyUI()` connect `Community 5` to `Community 8`, `Community 2`, `Community 3`, `Community 13`?**
+  _High betweenness centrality (0.156) - this node is a cross-community bridge._
+- **Why does `queueSpell()` connect `Community 1` to `Community 3`?**
+  _High betweenness centrality (0.139) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `updateLobbyUI()` (e.g. with `setPlayerName()` and `toggle()`) actually correct?**
   _`updateLobbyUI()` has 2 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 6 inferred relationships involving `playSound()` (e.g. with `toggleFx()` and `setMode()`) actually correct?**
-  _`playSound()` has 6 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 7 inferred relationships involving `playSound()` (e.g. with `toggleFx()` and `setMode()`) actually correct?**
+  _`playSound()` has 7 INFERRED edges - model-reasoned connections that need verification._

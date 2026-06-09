@@ -65,11 +65,14 @@
         let lanes = [];
         let windTimer = null;
 
+        const MODE_DESC = { selfish: 'Build alone. No rivals.', battle: '2-4 players. Sabotage others!', coop: 'Share one tower together.' };
         function setMode(mode) {
             playSound('click');
             gameMode = mode;
+            // legacy big mode cards (absent now that mode is a dropdown) — keep null-safe
             [['selfish','btn-mode-selfish'],['battle','btn-mode-battle'],['coop','btn-mode-coop']].forEach(([m,id]) => {
                 const el = document.getElementById(id);
+                if (!el) return;
                 el.classList.remove('bg-amber-400', 'bg-white', 'opacity-80');
                 if (mode === m) {
                     el.classList.add('bg-amber-400');
@@ -81,6 +84,8 @@
                     el.querySelector('div:last-child').classList.add('text-slate-500');
                 }
             });
+            const sel = document.getElementById('mode-select'); if (sel && sel.value !== mode) sel.value = mode;
+            const desc = document.getElementById('mode-desc'); if (desc) desc.innerText = MODE_DESC[mode] || '';
             const badge = document.getElementById('game-mode-badge');
             const label = mode === 'selfish' ? 'Solo Mode' : (mode === 'battle' ? 'Battle Mode' : 'Co-op Mode');
             if (badge) badge.innerText = label;   // badge is optional (removed from the in-game HUD)

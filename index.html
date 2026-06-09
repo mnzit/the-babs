@@ -91,28 +91,28 @@
                 <!-- Quick phone-join shortcut (mobile only — the Controllers card is far down when stacked) -->
                 <button onclick="enterJoinMode()" class="md:hidden w-full mb-6 py-3 rounded-2xl border-4 border-slate-900 bg-emerald-400 text-slate-900 text-base font-black uppercase tracking-wide bubbly-font hover:-translate-y-1 shadow-[0_4px_0_#0f172a] active:translate-y-1 active:shadow-none transition-all">Join via Phone</button>
 
-                <!-- Main Content Grid -->
-                <div class="w-full grid grid-cols-1 md:grid-cols-12 gap-6">
-                
-                <!-- Left Column: Modes -->
-                <div class="md:col-span-4 flex flex-col gap-4">
-                    <button onclick="setMode('selfish')" id="btn-mode-selfish" class="p-4 rounded-3xl border-4 border-slate-900 bg-amber-400 shadow-[0_8px_0_#0f172a] text-center hover:-translate-y-1 hover:shadow-[0_12px_0_#0f172a] active:translate-y-2 active:shadow-none transition-all">
-                        <div class="text-2xl tracking-wide uppercase">Solo Mode</div>
-                        <div class="text-xs text-slate-800 font-bold mt-1 font-sans">Build alone. No rivals.</div>
-                    </button>
-                    <button onclick="setMode('battle')" id="btn-mode-battle" class="p-4 rounded-3xl border-4 border-slate-900 bg-white shadow-[0_8px_0_#0f172a] text-center hover:-translate-y-1 hover:shadow-[0_12px_0_#0f172a] active:translate-y-2 active:shadow-none transition-all opacity-80">
-                        <div class="text-2xl tracking-wide uppercase">Battle Mode</div>
-                        <div class="text-xs text-slate-500 font-bold mt-1 font-sans">2-4 players. Sabotage others!</div>
-                    </button>
-                    <button onclick="setMode('coop')" id="btn-mode-coop" class="p-4 rounded-3xl border-4 border-slate-900 bg-white shadow-[0_8px_0_#0f172a] text-center hover:-translate-y-1 hover:shadow-[0_12px_0_#0f172a] active:translate-y-2 active:shadow-none transition-all opacity-80">
-                        <div class="text-2xl tracking-wide uppercase">Co-op Mode</div>
-                        <div class="text-xs text-slate-500 font-bold mt-1 font-sans">Share one tower together.</div>
-                    </button>
+                <!-- Top action bar: choose a mode + start the game -->
+                <div class="w-full mb-6">
+                    <div class="flex flex-col sm:flex-row gap-3 items-stretch">
+                        <div class="relative sm:w-72 shrink-0">
+                            <select id="mode-select" onchange="setMode(this.value)" aria-label="Game mode" class="appearance-none w-full h-full py-4 px-5 pr-12 rounded-3xl border-4 border-slate-900 bg-white text-slate-900 text-xl sm:text-2xl uppercase tracking-wide bubbly-font shadow-[0_6px_0_#0f172a] cursor-pointer focus:outline-none">
+                                <option value="selfish">Solo Mode</option>
+                                <option value="battle">Battle Mode</option>
+                                <option value="coop">Co-op Mode</option>
+                            </select>
+                            <svg class="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                        </div>
+                        <button onclick="startGame()" class="flex-1 py-4 rounded-3xl text-3xl sm:text-4xl text-white bg-gradient-to-b from-green-400 to-green-600 border-4 border-slate-900 shadow-[0_8px_0_#0f172a] hover:-translate-y-1 hover:shadow-[0_12px_0_#0f172a] active:translate-y-2 active:shadow-none transition-all uppercase tracking-widest" style="-webkit-text-stroke: 4px #0f172a; paint-order: stroke fill;">PLAY NOW</button>
+                    </div>
+                    <p id="mode-desc" class="text-sm text-slate-700 font-bold font-sans mt-2 text-center sm:text-left">Build alone. No rivals.</p>
                 </div>
 
-                <!-- Right Column: Settings & Players -->
-                <div class="md:col-span-8 flex flex-col gap-6">
-                    
+                <!-- Settings Grid -->
+                <div class="w-full grid grid-cols-1 md:grid-cols-12 gap-6">
+
+                <!-- Left Column: Crew -->
+                <div class="md:col-span-5">
+
                     <!-- Players Panel -->
                     <div class="bg-indigo-50 border-4 border-slate-900 rounded-3xl p-6 shadow-[0_8px_0_#0f172a]">
                         <div class="flex justify-between items-center mb-4 gap-2">
@@ -122,6 +122,10 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="lobby-player-slots"></div>
                         <p id="battle-note" class="text-sm text-rose-500 mt-3 hidden">Battle needs 2 to 4 players!</p>
                     </div>
+                </div>
+
+                <!-- Right Column: Settings -->
+                <div class="md:col-span-7 flex flex-col gap-6">
 
                     <!-- Speed / Tempo -->
                     <div class="bg-amber-50 border-4 border-slate-900 rounded-3xl p-6 shadow-[0_8px_0_#0f172a]">
@@ -163,10 +167,6 @@
                         </div>
                     </div>
 
-                    <!-- Start Button -->
-                    <button onclick="startGame()" class="w-full py-6 rounded-3xl text-4xl text-white bg-gradient-to-b from-green-400 to-green-600 border-4 border-slate-900 shadow-[0_12px_0_#0f172a] hover:-translate-y-2 hover:shadow-[0_16px_0_#0f172a] active:translate-y-3 active:shadow-none transition-all uppercase tracking-widest mt-2" style="-webkit-text-stroke: 4px #0f172a; paint-order: stroke fill;">
-                        PLAY NOW
-                    </button>
                 </div>
             </div>
             </div>
