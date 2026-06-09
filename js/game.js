@@ -66,6 +66,18 @@
         let windTimer = null;
 
         const MODE_DESC = { selfish: 'Build alone. No rivals.', battle: '2-4 players. Sabotage others!', coop: 'Share one tower together.' };
+        // Custom mode dropdown (the native <select> popup mis-anchors inside the scrollable modal).
+        function toggleModeMenu(e) {
+            if (e) e.stopPropagation();
+            const m = document.getElementById('mode-menu'); if (!m) return;
+            const open = m.classList.toggle('hidden') === false;
+            const chev = document.getElementById('mode-chevron'); if (chev) chev.classList.toggle('rotate-180', open);
+        }
+        function closeModeMenu() {
+            const m = document.getElementById('mode-menu'); if (m) m.classList.add('hidden');
+            const chev = document.getElementById('mode-chevron'); if (chev) chev.classList.remove('rotate-180');
+        }
+        function pickMode(mode) { closeModeMenu(); setMode(mode); }
         function setMode(mode) {
             playSound('click');
             gameMode = mode;
@@ -84,10 +96,10 @@
                     el.querySelector('div:last-child').classList.add('text-slate-500');
                 }
             });
-            const sel = document.getElementById('mode-select'); if (sel && sel.value !== mode) sel.value = mode;
             const desc = document.getElementById('mode-desc'); if (desc) desc.innerText = MODE_DESC[mode] || '';
             const badge = document.getElementById('game-mode-badge');
             const label = mode === 'selfish' ? 'Solo Mode' : (mode === 'battle' ? 'Battle Mode' : 'Co-op Mode');
+            const trig = document.getElementById('mode-trigger-label'); if (trig) trig.innerText = label;
             if (badge) badge.innerText = label;   // badge is optional (removed from the in-game HUD)
 
             if (mode === 'battle') {
@@ -168,6 +180,11 @@
             const flagResize = function () { lanes.forEach(l => { l.renderer._needsResize = true; }); };
             window.addEventListener('resize', flagResize);
             window.addEventListener('orientationchange', flagResize);
+            // close the custom mode dropdown when clicking anywhere outside it
+            document.addEventListener('click', function (e) {
+                const dd = document.getElementById('mode-dd');
+                if (dd && !dd.contains(e.target)) closeModeMenu();
+            });
         };
 
         // Build 1 lane (solo/co-op) or 2-4 lanes (battle, one tower per player). Each lane gets its
