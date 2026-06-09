@@ -90,12 +90,30 @@
             const j = JSON.parse(pako.inflate(b45decode(str.trim().toUpperCase()), { to: 'string' }));
             return { type: j.t === 'o' ? 'offer' : 'answer', sdp: j.s };
         }
+        // Don't wait for ICE gathering to fully "complete" (that blocks on every STUN server
+        // answering or timing out — up to seconds). On same-WiFi all we need is one
+        // server-reflexive (real-IP) candidate, which STUN returns in a few hundred ms; grab a
+        // short grace beat to collect a couple more, then go. Hard cap as a fallback.
         function waitIce(pc) {
             return new Promise(res => {
                 if (pc.iceGatheringState === 'complete') return res();
-                const done = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', done); res(); } };
-                pc.addEventListener('icegatheringstatechange', done);
-                setTimeout(res, 3500); // proceed with whatever candidates we have
+                let done = false, graceTimer = null;
+                const finish = () => {
+                    if (done) return; done = true;
+                    pc.removeEventListener('icecandidate', onCand);
+                    pc.removeEventListener('icegatheringstatechange', onState);
+                    clearTimeout(graceTimer); clearTimeout(hardTimer);
+                    res();
+                };
+                const onCand = (e) => {
+                    if (!e.candidate) return finish();   // null candidate = gathering finished
+                    // a reflexive candidate is enough to connect across devices on the same WiFi
+                    if (/ typ srflx /.test(e.candidate.candidate) && !graceTimer) graceTimer = setTimeout(finish, 250);
+                };
+                const onState = () => { if (pc.iceGatheringState === 'complete') finish(); };
+                pc.addEventListener('icecandidate', onCand);
+                pc.addEventListener('icegatheringstatechange', onState);
+                const hardTimer = setTimeout(finish, 1500);   // fallback cap (was 3500)
             });
         }
         function watchIce(pc, setStatus) {
