@@ -207,7 +207,9 @@
             if (battle) buildBattleControls();
             document.getElementById('battle-controls').classList.toggle('hidden', !battle);
             document.getElementById('battle-controls').classList.toggle('flex', battle);
-            document.getElementById('solo-controls').classList.toggle('hidden', battle);
+            const sc = document.getElementById('solo-controls');
+            sc.classList.toggle('hidden', battle);
+            sc.classList.toggle('flex', !battle);   // restore the centering flex (demolition strips it)
             { const th = document.getElementById('turn-hud'); if (th) th.classList.toggle('hidden', battle); }
             document.getElementById('solo-stats').classList.toggle('hidden', battle);
             document.getElementById('lobby-modal').classList.add('opacity-0', 'pointer-events-none');
