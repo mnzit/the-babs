@@ -79,7 +79,7 @@ Babs.CONFIG = {
     cadenceMin: 4500, cadenceRange: 4000, alertMs: 2600
   },
   // ---- game-over bottom-up demolition chain ----
-  demolition: { fallFrames: 7, introWait: 18, junkForgetBelow: 400, debrisCount: 16, explosionShards: 28, explosionPuffs: 8 },
+  demolition: { fallFrames: 7, introWait: 18, introMaxWait: 150, junkForgetBelow: 400, debrisCount: 16, explosionShards: 28, explosionPuffs: 8 },
   // ---- battle ----
   battle: { leadHouses: 5 },
   // ---- AI aim/think timing ----

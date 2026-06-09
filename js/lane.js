@@ -492,8 +492,13 @@
             const FALL_FRAMES = dm.fallFrames;
 
             if (this.demoState === 'intro') {
-                // let the camera settle on the base before we start
-                if (++this._wait > dm.introWait) this.demoState = 'break';
+                // Hold until the camera has actually panned down to the base, so the player sees
+                // the building fall from the bottom up. In solo you usually lose via the survival
+                // auto-scroll with the camera high up, so a fixed wait would start the collapse
+                // off-screen. Gate on arrival (within a few px) past a minimum pause, hard-capped.
+                this._wait++;
+                const atBase = Math.abs(this.cameraYOffset - this.targetCameraYOffset) < 14;
+                if ((atBase && this._wait > dm.introWait) || this._wait > dm.introMaxWait) this.demoState = 'break';
                 return;
             }
 
