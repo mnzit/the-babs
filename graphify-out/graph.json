@@ -45,7 +45,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L21",
       "id": "net_setplayername",
-      "community": 1,
+      "community": 8,
       "norm_label": "setplayername()"
     },
     {
@@ -54,7 +54,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L30",
       "id": "net_slotcount",
-      "community": 9,
+      "community": 1,
       "norm_label": "slotcount()"
     },
     {
@@ -63,7 +63,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L32",
       "id": "net_buildpairlist",
-      "community": 9,
+      "community": 1,
       "norm_label": "buildpairlist()"
     },
     {
@@ -72,7 +72,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L48",
       "id": "net_markslotconnected",
-      "community": 9,
+      "community": 1,
       "norm_label": "markslotconnected()"
     },
     {
@@ -81,7 +81,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L61",
       "id": "net_b45encode",
-      "community": 5,
+      "community": 11,
       "norm_label": "b45encode()"
     },
     {
@@ -90,7 +90,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L75",
       "id": "net_b45decode",
-      "community": 11,
+      "community": 10,
       "norm_label": "b45decode()"
     },
     {
@@ -99,7 +99,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L85",
       "id": "net_packsdp",
-      "community": 5,
+      "community": 11,
       "norm_label": "packsdp()"
     },
     {
@@ -108,7 +108,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L89",
       "id": "net_unpacksdp",
-      "community": 11,
+      "community": 10,
       "norm_label": "unpacksdp()"
     },
     {
@@ -117,7 +117,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L93",
       "id": "net_waitice",
-      "community": 5,
+      "community": 4,
       "norm_label": "waitice()"
     },
     {
@@ -126,7 +126,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L101",
       "id": "net_watchice",
-      "community": 5,
+      "community": 4,
       "norm_label": "watchice()"
     },
     {
@@ -135,7 +135,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L112",
       "id": "net_scanqr",
-      "community": 10,
+      "community": 4,
       "norm_label": "scanqr()"
     },
     {
@@ -144,7 +144,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L131",
       "id": "net_makeqr",
-      "community": 5,
+      "community": 4,
       "norm_label": "makeqr()"
     },
     {
@@ -153,7 +153,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L142",
       "id": "net_hostpair",
-      "community": 5,
+      "community": 4,
       "norm_label": "hostpair()"
     },
     {
@@ -180,7 +180,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L197",
       "id": "net_joinstartscan",
-      "community": 10,
+      "community": 4,
       "norm_label": "joinstartscan()"
     },
     {
@@ -189,7 +189,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/net.js",
       "source_location": "L206",
       "id": "net_joinfromoffer",
-      "community": 5,
+      "community": 4,
       "norm_label": "joinfromoffer()"
     },
     {
@@ -243,7 +243,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/events.js",
       "source_location": "L1",
       "id": "users_manjitshakya_projects_towergame_js_events_js",
-      "community": 15,
+      "community": 14,
       "norm_label": "events.js"
     },
     {
@@ -252,7 +252,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L1",
       "id": "users_manjitshakya_projects_towergame_js_game_js",
-      "community": 2,
+      "community": 3,
       "norm_label": "game.js"
     },
     {
@@ -261,7 +261,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L13",
       "id": "game_buildhazardtoggles",
-      "community": 3,
+      "community": 2,
       "norm_label": "buildhazardtoggles()"
     },
     {
@@ -270,7 +270,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L26",
       "id": "game_togglefx",
-      "community": 4,
+      "community": 2,
       "norm_label": "togglefx()"
     },
     {
@@ -279,7 +279,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L31",
       "id": "game_updatehazardui",
-      "community": 3,
+      "community": 2,
       "norm_label": "updatehazardui()"
     },
     {
@@ -288,7 +288,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L42",
       "id": "game_setspeed",
-      "community": 2,
+      "community": 3,
       "norm_label": "setspeed()"
     },
     {
@@ -297,7 +297,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L48",
       "id": "game_loadspeedsettings",
-      "community": 2,
+      "community": 3,
       "norm_label": "loadspeedsettings()"
     },
     {
@@ -306,7 +306,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L56",
       "id": "game_syncspeedui",
-      "community": 2,
+      "community": 3,
       "norm_label": "syncspeedui()"
     },
     {
@@ -315,7 +315,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L68",
       "id": "game_setmode",
-      "community": 4,
+      "community": 5,
       "norm_label": "setmode()"
     },
     {
@@ -324,7 +324,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L96",
       "id": "game_updatelobbyui",
-      "community": 4,
+      "community": 5,
       "norm_label": "updatelobbyui()"
     },
     {
@@ -333,7 +333,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L124",
       "id": "game_renameplayer",
-      "community": 2,
+      "community": 3,
       "norm_label": "renameplayer()"
     },
     {
@@ -342,7 +342,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L125",
       "id": "game_toggleai",
-      "community": 4,
+      "community": 5,
       "norm_label": "toggleai()"
     },
     {
@@ -351,7 +351,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L126",
       "id": "game_removeplayer",
-      "community": 4,
+      "community": 5,
       "norm_label": "removeplayer()"
     },
     {
@@ -360,7 +360,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L127",
       "id": "game_addplayer",
-      "community": 4,
+      "community": 5,
       "norm_label": "addplayer()"
     },
     {
@@ -405,7 +405,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L244",
       "id": "game_triggercomboeffect",
-      "community": 3,
+      "community": 2,
       "norm_label": "triggercomboeffect()"
     },
     {
@@ -414,7 +414,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L259",
       "id": "game_checkbattlelead",
-      "community": 2,
+      "community": 3,
       "norm_label": "checkbattlelead()"
     },
     {
@@ -423,7 +423,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L268",
       "id": "game_endlane",
-      "community": 2,
+      "community": 3,
       "norm_label": "endlane()"
     },
     {
@@ -432,7 +432,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L312",
       "id": "game_endgame",
-      "community": 2,
+      "community": 3,
       "norm_label": "endgame()"
     },
     {
@@ -477,16 +477,16 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
       "source_location": "L379",
       "id": "game_simulatestep",
-      "community": 2,
+      "community": 3,
       "norm_label": "simulatestep()"
     },
     {
       "label": "gameLoop()",
       "file_type": "code",
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
-      "source_location": "L399",
+      "source_location": "L403",
       "id": "game_gameloop",
-      "community": 2,
+      "community": 3,
       "norm_label": "gameloop()"
     },
     {
@@ -549,7 +549,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/hazards.js",
       "source_location": "L1",
       "id": "users_manjitshakya_projects_towergame_js_hazards_js",
-      "community": 3,
+      "community": 2,
       "norm_label": "hazards.js"
     },
     {
@@ -558,7 +558,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/hazards.js",
       "source_location": "L19",
       "id": "hazards_register",
-      "community": 3,
+      "community": 2,
       "norm_label": "register()"
     },
     {
@@ -567,7 +567,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/hazards.js",
       "source_location": "L20",
       "id": "hazards_get",
-      "community": 3,
+      "community": 2,
       "norm_label": "get()"
     },
     {
@@ -576,7 +576,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/hazards.js",
       "source_location": "L21",
       "id": "hazards_all",
-      "community": 3,
+      "community": 2,
       "norm_label": "all()"
     },
     {
@@ -585,7 +585,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/hazards.js",
       "source_location": "L22",
       "id": "hazards_enabled",
-      "community": 3,
+      "community": 2,
       "norm_label": "enabled()"
     },
     {
@@ -594,7 +594,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/hazards.js",
       "source_location": "L23",
       "id": "hazards_setenabled",
-      "community": 3,
+      "community": 2,
       "norm_label": "setenabled()"
     },
     {
@@ -603,7 +603,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/hazards.js",
       "source_location": "L24",
       "id": "hazards_toggle",
-      "community": 4,
+      "community": 2,
       "norm_label": "toggle()"
     },
     {
@@ -666,7 +666,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/lane.js",
       "source_location": "L1",
       "id": "users_manjitshakya_projects_towergame_js_lane_js",
-      "community": 14,
+      "community": 9,
       "norm_label": "lane.js"
     },
     {
@@ -675,8 +675,17 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/lane.js",
       "source_location": "L30",
       "id": "lane_lane",
-      "community": 14,
+      "community": 9,
       "norm_label": "lane()"
+    },
+    {
+      "label": "lerp()",
+      "file_type": "code",
+      "source_file": "/Users/manjitshakya/projects/towergame/js/lane.js",
+      "source_location": "L422",
+      "id": "lane_lerp",
+      "community": 9,
+      "norm_label": "lerp()"
     },
     {
       "label": "audio.js",
@@ -792,7 +801,7 @@
       "source_file": "/Users/manjitshakya/projects/towergame/js/audio.js",
       "source_location": "L67",
       "id": "audio_playsound",
-      "community": 4,
+      "community": 5,
       "norm_label": "playsound()"
     }
   ],
@@ -1617,7 +1626,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
-      "source_location": "L399",
+      "source_location": "L403",
       "weight": 1.0,
       "_src": "users_manjitshakya_projects_towergame_js_game_js",
       "_tgt": "game_gameloop",
@@ -2001,7 +2010,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "/Users/manjitshakya/projects/towergame/js/game.js",
-      "source_location": "L412",
+      "source_location": "L416",
       "weight": 1.0,
       "_src": "game_gameloop",
       "_tgt": "game_simulatestep",
@@ -2235,6 +2244,18 @@
       "_tgt": "lane_lane",
       "source": "users_manjitshakya_projects_towergame_js_lane_js",
       "target": "lane_lane",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "/Users/manjitshakya/projects/towergame/js/lane.js",
+      "source_location": "L422",
+      "weight": 1.0,
+      "_src": "users_manjitshakya_projects_towergame_js_lane_js",
+      "_tgt": "lane_lerp",
+      "source": "users_manjitshakya_projects_towergame_js_lane_js",
+      "target": "lane_lerp",
       "confidence_score": 1.0
     },
     {

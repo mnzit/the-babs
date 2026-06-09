@@ -404,6 +404,46 @@
             if (this._toast) { this._toast.t--; if (this._toast.t <= 0) this._toast = null; }
         };
 
+        // ---- Render interpolation -------------------------------------------------
+        // The sim advances in fixed 1/60s steps, but the screen may refresh faster
+        // (120/144Hz) or slower. To keep motion smooth we draw a frame BETWEEN the two
+        // most recent physics states: capture the pre-step pose, then just before
+        // rendering nudge every body/camera value to a blend of (prev, current) by
+        // `alpha` (= leftover accumulator). We mutate in place for the draw and restore
+        // the exact true values immediately after, so the physics integrator is untouched.
+        Lane.prototype.captureStepState = function () {
+            this.blocks.forEach(b => { b._px = b.position.x; b._py = b.position.y; b._pa = b.angle; });
+            this.junk.forEach(j => { j._px = j.position.x; j._py = j.position.y; j._pa = j.angle; });
+            this._pCam = this.cameraYOffset; this._pPivot = this.pivotY; this._pSwing = this.swingTime;
+            this._interp = false;
+        };
+        Lane.prototype.applyInterpolation = function (alpha) {
+            if (this._pCam == null || alpha <= 0) { this._interp = false; return; }  // idle, or exactly on a step
+            const lerp = (p, c) => p + (c - p) * alpha;
+            this.blocks.forEach(b => {
+                if (b._px == null) return;
+                b._tx = b.position.x; b._ty = b.position.y; b._ta = b.angle;
+                b.position.x = lerp(b._px, b._tx); b.position.y = lerp(b._py, b._ty); b.angle = lerp(b._pa, b._ta);
+            });
+            this.junk.forEach(j => {
+                if (j._px == null) return;
+                j._tx = j.position.x; j._ty = j.position.y; j._ta = j.angle;
+                j.position.x = lerp(j._px, j._tx); j.position.y = lerp(j._py, j._ty); j.angle = lerp(j._pa, j._ta);
+            });
+            this._tCam = this.cameraYOffset; this._tPivot = this.pivotY; this._tSwing = this.swingTime;
+            this.cameraYOffset = lerp(this._pCam, this._tCam);
+            this.pivotY = lerp(this._pPivot, this._tPivot);
+            this.swingTime = lerp(this._pSwing, this._tSwing);
+            this._interp = true;
+        };
+        Lane.prototype.restoreInterpolation = function () {
+            if (!this._interp) return;
+            this.blocks.forEach(b => { if (b._tx != null) { b.position.x = b._tx; b.position.y = b._ty; b.angle = b._ta; b._tx = null; } });
+            this.junk.forEach(j => { if (j._tx != null) { j.position.x = j._tx; j.position.y = j._ty; j.angle = j._ta; j._tx = null; } });
+            this.cameraYOffset = this._tCam; this.pivotY = this._tPivot; this.swingTime = this._tSwing;
+            this._interp = false;
+        };
+
         // ---- Game-over demolition: pan to the base, then a clean bottom-up chain reaction:
         //      the base house shatters to nothing, the tower above drops one slot into its place,
         //      that new base shatters, the rest drop again... all the way up. ----

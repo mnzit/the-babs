@@ -379,6 +379,10 @@
         function simulateStep() {
             if (panicCooldown > 0) panicCooldown--;
 
+            // snapshot pre-step positions so the renderer can interpolate between physics
+            // steps (otherwise a >60Hz display redraws faster than the sim moves -> stutter)
+            lanes.forEach(l => l.captureStepState());
+
             let globalMaxCamY = 0;
             lanes.forEach(l => {
                 if (matchActive && l.alive) {
@@ -411,7 +415,11 @@
             else _simAccumulator -= steps * tm.fixedStepMs;
             for (let s = 0; s < steps; s++) simulateStep();
 
+            // render between two physics states for buttery motion on any refresh rate
+            const alpha = Math.max(0, Math.min(1, _simAccumulator / tm.fixedStepMs));
+            lanes.forEach(l => l.applyInterpolation(alpha));
             lanes.forEach(l => l.render());
+            lanes.forEach(l => l.restoreInterpolation());
             // once every lane has finished crumbling, reveal the game-over screen
             if (Babs.StateMachine.is('demolition') && lanes.length && lanes.every(l => !l.demolishing)) {
                 Babs.StateMachine.to('gameover');
