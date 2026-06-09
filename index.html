@@ -112,8 +112,9 @@
                     
                     <!-- Players Panel -->
                     <div class="bg-indigo-50 border-4 border-slate-900 rounded-3xl p-6 shadow-[0_8px_0_#0f172a]">
-                        <div class="flex justify-between items-center mb-4">
+                        <div class="flex justify-between items-center mb-4 gap-2">
                             <h3 class="text-xl uppercase tracking-wider text-indigo-900">Crew <span id="player-count-label" class="text-indigo-500 text-base">(1/4)</span></h3>
+                            <button id="btn-reset-scores" onclick="resetScores()" class="hidden text-xs px-3 py-1.5 rounded-xl border-2 border-slate-900 bg-rose-400 text-slate-900 uppercase tracking-wide hover:-translate-y-0.5 shadow-[0_2px_0_#0f172a] active:translate-y-0.5 active:shadow-none transition-all shrink-0">Reset Scores</button>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="lobby-player-slots"></div>
                         <p id="battle-note" class="text-sm text-rose-500 mt-3 hidden">Battle needs 2 to 4 players!</p>

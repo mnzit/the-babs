@@ -118,7 +118,16 @@
             }
             document.getElementById('player-count-label').innerText = `(${players.length}/${maxPlayers})`;
             document.getElementById('battle-note').classList.toggle('hidden', !(gameMode === 'battle' && (players.length < 2 || players.length > 4)));
+            const rs = document.getElementById('btn-reset-scores');   // only in battle, only when there's a score to clear
+            if (rs) rs.classList.toggle('hidden', !(gameMode === 'battle' && players.some(p => p.wins)));
             Babs.bus.emit('lobby:updated', {});   // NetBridge refreshes the pairing list (see net.js)
+        }
+
+        // Wipe every player's battle win tally back to zero.
+        function resetScores() {
+            playSound('click');
+            players.forEach(p => { p.wins = 0; });
+            updateLobbyUI();
         }
 
         function renamePlayer(idx, val) { players[idx].name = val.trim() || ('Player ' + (idx + 1)); }
