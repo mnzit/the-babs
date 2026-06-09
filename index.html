@@ -46,13 +46,12 @@
         <!-- TOP HUD (no bar, just the title / mode / stats floating over the sky) -->
         <div class="absolute top-0 inset-x-0 z-20 flex justify-between items-start gap-2 px-3 py-2 pointer-events-none">
             <div class="flex items-center gap-2 min-w-0">
-                <div class="min-w-0">
-                    <h1 class="text-base sm:text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-indigo-600 to-teal-500 bubbly-font leading-tight">THE BABS</h1>
-                    <div class="flex items-center gap-1 mt-0.5">
-                        <p id="game-mode-badge" class="text-[9px] sm:text-xs font-semibold text-teal-600 uppercase tracking-widest bg-teal-50 px-2 py-0.5 rounded border border-teal-200 w-max">Solo Mode</p>
-                        <button id="btn-mute" onclick="toggleMute()" class="pointer-events-auto text-[9px] sm:text-xs font-semibold text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded border border-slate-300 w-max hover:bg-slate-200 transition-colors">🔊 Sound On</button>
-                    </div>
-                </div>
+                <button onclick="resetToLobby()" aria-label="Back to lobby" class="pointer-events-auto w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/85 backdrop-blur-sm border-2 border-slate-900 text-slate-700 shadow-[0_3px_0_#0f172a] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+                <button id="btn-mute" onclick="toggleMute()" aria-label="Toggle sound" class="pointer-events-auto w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/85 backdrop-blur-sm border-2 border-slate-900 text-slate-700 shadow-[0_3px_0_#0f172a] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M19 5a9 9 0 010 14"/></svg>
+                </button>
             </div>
             <div id="solo-stats" class="flex gap-3 sm:gap-4 shrink-0">
                 <div class="text-right">
@@ -67,12 +66,6 @@
         </div>
 
         <!-- CURRENT TURN HUD (solo / co-op) -->
-        <div id="turn-hud" class="absolute top-[52px] sm:top-[68px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-white/85 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-md border border-white/60 max-w-[92vw]">
-            <div id="ctrl-player-color" class="w-3 h-3 rounded-full bg-cyan-400 shrink-0"></div>
-            <h2 id="ctrl-player-name" class="text-sm font-black bubbly-font text-indigo-900 truncate">Player 1</h2>
-            <span class="text-slate-300 hidden sm:inline">-</span>
-            <p id="ctrl-turn-prompt" class="text-xs text-slate-500 truncate hidden sm:block">Tap anywhere to drop!</p>
-        </div>
 
         <!-- WIND ALERT (flashes when a gust is coming) -->
         <div id="wind-alert" class="absolute top-[96px] sm:top-[116px] left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full text-white font-black bubbly-font text-sm shadow-lg pointer-events-none opacity-0 transition-opacity duration-300 bg-cyan-500/90">WINDY</div>
@@ -123,7 +116,7 @@
                             <h3 class="text-xl uppercase tracking-wider text-indigo-900">Crew <span id="player-count-label" class="text-indigo-500 text-base">(1/4)</span></h3>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="lobby-player-slots"></div>
-                        <p id="battle-note" class="text-sm text-rose-500 mt-3 hidden">⚠️ Battle needs 2 to 4 players!</p>
+                        <p id="battle-note" class="text-sm text-rose-500 mt-3 hidden">Battle needs 2 to 4 players!</p>
                     </div>
 
                     <!-- Speed / Tempo -->
@@ -132,7 +125,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                             <label class="flex flex-col gap-2">
                                 <span class="flex justify-between items-center text-sm uppercase tracking-wide text-amber-900">
-                                    <span>🏠 Drop Speed</span>
+                                    <span>Drop Speed</span>
                                     <span id="speed-drop-val" class="text-amber-600 bubbly-font">1.0×</span>
                                 </span>
                                 <input id="speed-drop" type="range" min="0.5" max="2" step="0.1" value="1"
@@ -141,7 +134,7 @@
                             </label>
                             <label class="flex flex-col gap-2">
                                 <span class="flex justify-between items-center text-sm uppercase tracking-wide text-amber-900">
-                                    <span>🪝 Swing Speed</span>
+                                    <span>Swing Speed</span>
                                     <span id="speed-pendulum-val" class="text-amber-600 bubbly-font">1.0×</span>
                                 </span>
                                 <input id="speed-pendulum" type="range" min="0.5" max="2" step="0.1" value="1"

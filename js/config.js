@@ -25,6 +25,9 @@ Babs.CONFIG = {
   //      so wall-clock game speed is identical on a 60Hz laptop, a 144Hz monitor, and
   //      under heavy 4-lane load. maxStepsPerFrame caps catch-up after a stall/tab-switch.
   timing: { fixedStepMs: 1000 / 60, maxStepsPerFrame: 5, maxFrameMs: 250 },
+  // ---- render performance: cap the canvas backing-store resolution. A 3x retina phone
+  //      would otherwise fill 9x the pixels every frame; 2x stays crisp at ~half the cost.
+  render: { maxDPR: 2 },
   // ---- swinging crane / pendulum + drop kinematics ----
   crane: {
     pivotX: 275,            // CANVAS_WIDTH / 2

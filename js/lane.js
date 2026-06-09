@@ -38,7 +38,7 @@
             const cfg = this.config;
 
             this.canvas = canvas;
-            this.ctx = canvas.getContext('2d');
+            this.ctx = canvas.getContext('2d', { alpha: false });  // opaque -> faster compositing
             this.players = lanePlayers;        // turn order within this lane
             this.currentPlayerIndex = 0;
             this.accent = accent || '#3b82f6';

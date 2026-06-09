@@ -83,7 +83,7 @@
             });
             const badge = document.getElementById('game-mode-badge');
             const label = mode === 'selfish' ? 'Solo Mode' : (mode === 'battle' ? 'Battle Mode' : 'Co-op Mode');
-            badge.innerText = label;
+            if (badge) badge.innerText = label;   // badge is optional (removed from the in-game HUD)
 
             if (mode === 'battle') {
                 while (players.length < 2) addPlayer();   // 2-4 towers
@@ -150,7 +150,10 @@
                 if (e.code === 'Space') { e.preventDefault(); if (lanes[0]) lanes[0].drop(); }
                 else if (e.code === 'Enter') { e.preventDefault(); if (lanes[1]) lanes[1].drop(); }
             });
-            window.addEventListener('resize', function () { lanes.forEach(l => l.resize()); });
+            // flag a re-size for the next frame instead of reflowing immediately on every event
+            const flagResize = function () { lanes.forEach(l => { l.renderer._needsResize = true; }); };
+            window.addEventListener('resize', flagResize);
+            window.addEventListener('orientationchange', flagResize);
         };
 
         // Build 1 lane (solo/co-op) or 2-4 lanes (battle, one tower per player). Each lane gets its
@@ -205,7 +208,7 @@
             document.getElementById('battle-controls').classList.toggle('hidden', !battle);
             document.getElementById('battle-controls').classList.toggle('flex', battle);
             document.getElementById('solo-controls').classList.toggle('hidden', battle);
-            document.getElementById('turn-hud').classList.toggle('hidden', battle);
+            { const th = document.getElementById('turn-hud'); if (th) th.classList.toggle('hidden', battle); }
             document.getElementById('solo-stats').classList.toggle('hidden', battle);
             document.getElementById('lobby-modal').classList.add('opacity-0', 'pointer-events-none');
             document.getElementById('gameover-modal').classList.add('hidden');
@@ -365,12 +368,13 @@
             if (gameMode === 'battle') return;
             const lane = lanes[0]; if (!lane) return;
             const p = lane.player();
-            document.getElementById('ctrl-player-name').innerText = p.name;
-            document.getElementById('ctrl-player-name').style.color = p.color;
-            document.getElementById('ctrl-player-color').style.backgroundColor = p.color;
-            const hint = document.getElementById('drop-hint');
-            if (p.isAI) { document.getElementById('ctrl-turn-prompt').innerText = 'AI thinking...'; if (hint) hint.style.opacity = '0.25'; }
-            else { document.getElementById('ctrl-turn-prompt').innerText = 'Tap anywhere to drop!'; if (hint) hint.style.opacity = '1'; }
+            // turn-hud was removed from the HUD; keep these writes null-safe, and still
+            // dim the bottom drop-hint while the AI is taking its turn.
+            const name = document.getElementById('ctrl-player-name');
+            if (name) { name.innerText = p.name; name.style.color = p.color; }
+            const dot = document.getElementById('ctrl-player-color'); if (dot) dot.style.backgroundColor = p.color;
+            const prompt = document.getElementById('ctrl-turn-prompt'); if (prompt) prompt.innerText = p.isAI ? 'AI thinking...' : 'Tap anywhere to drop!';
+            const hint = document.getElementById('drop-hint'); if (hint) hint.style.opacity = p.isAI ? '0.25' : '1';
         }
 
         // One fixed simulation slice. Advancing physics/swing/auto-scroll in here (not in the
@@ -415,11 +419,15 @@
             else _simAccumulator -= steps * tm.fixedStepMs;
             for (let s = 0; s < steps; s++) simulateStep();
 
-            // render between two physics states for buttery motion on any refresh rate
-            const alpha = Math.max(0, Math.min(1, _simAccumulator / tm.fixedStepMs));
-            lanes.forEach(l => l.applyInterpolation(alpha));
-            lanes.forEach(l => l.render());
-            lanes.forEach(l => l.restoreInterpolation());
+            // Skip drawing entirely while the opaque lobby modal covers every lane — no point
+            // rendering pixels nobody can see (saves battery/CPU and keeps the start instant).
+            if (!Babs.StateMachine.is('lobby')) {
+                // render between two physics states for buttery motion on any refresh rate
+                const alpha = Math.max(0, Math.min(1, _simAccumulator / tm.fixedStepMs));
+                lanes.forEach(l => l.applyInterpolation(alpha));
+                lanes.forEach(l => l.render());
+                lanes.forEach(l => l.restoreInterpolation());
+            }
             // once every lane has finished crumbling, reveal the game-over screen
             if (Babs.StateMachine.is('demolition') && lanes.length && lanes.every(l => !l.demolishing)) {
                 Babs.StateMachine.to('gameover');

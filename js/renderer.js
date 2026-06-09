@@ -11,25 +11,36 @@ Babs.LaneRenderer = function (lane) {
     this.lane = lane;
     this.ctx = lane.ctx;        // canvas context is stable for the life of the lane
     this.canvas = lane.canvas;
+    this._needsResize = true;   // size the backing store on the first frame, then only on resize
+    this._bgGrad = null; this._bgGradH = 0;  // cached gradients (re-allocating per frame is wasteful)
+    this._skyGrad = null;
 };
         // ---------------------------------------------------------------------------
         // Lane rendering
         // ---------------------------------------------------------------------------
+        // Resizing reads clientWidth/clientHeight, which forces a synchronous layout reflow.
+        // Doing that every frame (x N lanes) is a major hidden cost, so it only runs when the
+        // _needsResize flag is set (first frame + on a real window/orientation resize).
         Babs.LaneRenderer.prototype.resize = function () {
-            const dpr = window.devicePixelRatio || 1;
+            const dpr = Math.min(window.devicePixelRatio || 1, Babs.CONFIG.render.maxDPR);
             const w = Math.max(1, Math.floor(this.canvas.clientWidth * dpr));
             const h = Math.max(1, Math.floor(this.canvas.clientHeight * dpr));
-            if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; }
+            if (this.canvas.width !== w || this.canvas.height !== h) {
+                this.canvas.width = w; this.canvas.height = h;
+                this._bgGrad = null;   // backing-store size changed: rebuild the height-keyed gradient
+            }
         };
 
         Babs.LaneRenderer.prototype.render = function () {
-            this.resize();
+            if (this._needsResize) { this.resize(); this._needsResize = false; }
             const ctx = this.ctx, W = this.canvas.width, H = this.canvas.height;
             ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.clearRect(0, 0, W, H);
-            const bg = ctx.createLinearGradient(0, 0, 0, H);
-            bg.addColorStop(0, '#0284c7'); bg.addColorStop(0.5, '#bae6fd'); bg.addColorStop(1, '#bae6fd');
-            ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+            if (!this._bgGrad || this._bgGradH !== H) {
+                const bg = ctx.createLinearGradient(0, 0, 0, H);
+                bg.addColorStop(0, '#0284c7'); bg.addColorStop(0.5, '#bae6fd'); bg.addColorStop(1, '#bae6fd');
+                this._bgGrad = bg; this._bgGradH = H;
+            }
+            ctx.fillStyle = this._bgGrad; ctx.fillRect(0, 0, W, H);   // opaque fill replaces clearRect
 
             const scale = H / CANVAS_HEIGHT;
             const offX = (W - CANVAS_WIDTH * scale) / 2;
@@ -89,9 +100,12 @@ Babs.LaneRenderer = function (lane) {
 
         Babs.LaneRenderer.prototype.drawBackground = function () {
             const ctx = this.ctx;
-            const sky = ctx.createLinearGradient(0, -1500, 0, CANVAS_HEIGHT);
-            sky.addColorStop(0, '#0284c7'); sky.addColorStop(0.4, '#bae6fd'); sky.addColorStop(1, '#bae6fd');
-            ctx.fillStyle = sky; ctx.fillRect(-4000, -3000, CANVAS_WIDTH + 8000, CANVAS_HEIGHT + 3500);
+            if (!this._skyGrad) {   // fixed world-space coords -> build once, reuse forever
+                const sky = ctx.createLinearGradient(0, -1500, 0, CANVAS_HEIGHT);
+                sky.addColorStop(0, '#0284c7'); sky.addColorStop(0.4, '#bae6fd'); sky.addColorStop(1, '#bae6fd');
+                this._skyGrad = sky;
+            }
+            ctx.fillStyle = this._skyGrad; ctx.fillRect(-4000, -3000, CANVAS_WIDTH + 8000, CANVAS_HEIGHT + 3500);
             ctx.fillStyle = 'rgba(255,253,224,0.95)';
             ctx.beginPath(); ctx.arc(CANVAS_WIDTH - 100, 220 - this.lane.cameraYOffset * 0.25, 45, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = 'rgba(255,253,224,0.2)';
@@ -482,10 +496,7 @@ Babs.LaneRenderer = function (lane) {
 
         Babs.LaneRenderer.prototype.drawCrane = function () {
             const ctx = this.ctx;
-            // gantry beam
-            ctx.strokeStyle = '#475569'; ctx.lineWidth = 14;
-            ctx.beginPath(); ctx.moveTo(-4000, this.lane.pivotY - 20); ctx.lineTo(CANVAS_WIDTH + 4000, this.lane.pivotY - 20); ctx.stroke();
-
+            // (no full-width gantry beam — just the pulley/gears hang the rope)
             const cr = this.lane.config.crane;
             const swingSpeed = (cr.swingBase + this.lane.successfulDrops * cr.swingPerDrop) * this.lane.config.speed.pendulum, thetaMax = cr.thetaMax;
             const windAngle = this.lane.currentWind * cr.windAngleFactor;

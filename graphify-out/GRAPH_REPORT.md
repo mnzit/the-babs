@@ -1,7 +1,7 @@
 # Graph Report - /Users/manjitshakya/projects/towergame  (2026-06-09)
 
 ## Corpus Check
-- 9 files · ~24,530 words
+- 9 files · ~24,850 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -69,8 +69,8 @@ Cohesion: 0.27
 Nodes (6): endGame(), endLane(), gameLoop(), setSpeed(), simulateStep(), syncSpeedUI()
 
 ### Community 4 - "Community 4"
-Cohesion: 0.38
-Nodes (7): hostPair(), joinFromOffer(), joinStartScan(), makeQR(), scanQR(), waitIce(), watchIce()
+Cohesion: 0.43
+Nodes (7): b45encode(), hostPair(), joinFromOffer(), makeQR(), packSDP(), waitIce(), watchIce()
 
 ### Community 5 - "Community 5"
 Cohesion: 0.6
@@ -94,11 +94,11 @@ Nodes (0):
 
 ### Community 10 - "Community 10"
 Cohesion: 1.0
-Nodes (2): b45decode(), unpackSDP()
+Nodes (2): joinStartScan(), scanQR()
 
 ### Community 11 - "Community 11"
 Cohesion: 1.0
-Nodes (2): b45encode(), packSDP()
+Nodes (2): b45decode(), unpackSDP()
 
 ### Community 12 - "Community 12"
 Cohesion: 1.0
@@ -113,9 +113,9 @@ Cohesion: 1.0
 Nodes (0): 
 
 ## Knowledge Gaps
-- **Thin community `Community 10`** (2 nodes): `b45decode()`, `unpackSDP()`
+- **Thin community `Community 10`** (2 nodes): `joinStartScan()`, `scanQR()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 11`** (2 nodes): `b45encode()`, `packSDP()`
+- **Thin community `Community 11`** (2 nodes): `b45decode()`, `unpackSDP()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 12`** (2 nodes): `buildLanes()`, `resetToLobby()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.

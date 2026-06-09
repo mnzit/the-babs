@@ -1,5 +1,9 @@
 // audio.js — extracted from index.html (P0 mechanical split, verbatim)
         let isMuted = false;
+        // Inline SVG icons (no emoji): speaker with sound waves vs. speaker with an X.
+        const ICON_SVG_HEAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M11 5L6 9H2v6h4l5 4V5z"/>';
+        const VOLUME_ON_SVG = ICON_SVG_HEAD + '<path d="M15.5 8.5a5 5 0 010 7"/><path d="M19 5a9 9 0 010 14"/></svg>';
+        const VOLUME_OFF_SVG = ICON_SVG_HEAD + '<line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
 
         function toggleMute() {
             isMuted = !isMuted;
@@ -9,7 +13,7 @@
                 else a.volume = Babs.CONFIG.audio.bgmVolume;
             }
             const btn = document.getElementById('btn-mute');
-            if (btn) btn.innerHTML = isMuted ? '🔇 Muted' : '🔊 Sound On';
+            if (btn) btn.innerHTML = isMuted ? VOLUME_OFF_SVG : VOLUME_ON_SVG;
         }
 
         // Fire a one-shot sound effect element at a given volume.
