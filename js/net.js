@@ -31,18 +31,24 @@
 
         function buildPairList() {
             const list = document.getElementById('pair-list');
-            if (!list) return;
-            list.innerHTML = '';
-            for (let s = 1; s <= slotCount(); s++) {
-                const connected = peers[s] && peers[s].connected;
-                const row = document.createElement('div');
-                row.className = 'flex items-center justify-between gap-2 p-2 rounded-xl bg-white border border-slate-200';
-                row.innerHTML = `<span class="text-sm font-bold text-slate-700">Player ${s}</span>
-                    <span class="flex items-center gap-2">
-                        <span class="text-[11px] font-bold ${connected ? 'text-emerald-600' : 'text-slate-400'}">${connected ? 'connected' : 'not paired'}</span>
-                        <button onclick="hostPair(${s})" class="text-[11px] font-bold px-2 py-1 rounded ${connected ? 'bg-slate-100 text-slate-500' : 'bg-indigo-600 text-white'}">${connected ? 're-pair' : 'pair phone'}</button>
-                    </span>`;
-                list.appendChild(row);
+            if (list) {
+                list.innerHTML = '';
+                for (let s = 1; s <= slotCount(); s++) {
+                    const connected = peers[s] && peers[s].connected;
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center justify-between gap-2 p-2 rounded-xl bg-white border border-slate-200';
+                    row.innerHTML = `<span class="text-sm font-bold text-slate-700">Player ${s}</span>
+                        <span class="text-[11px] font-bold ${connected ? 'text-emerald-600' : 'text-slate-400'}">${connected ? 'connected' : 'not paired'}</span>`;
+                    list.appendChild(row);
+                }
+            }
+            // a single button pairs every unpaired phone in turn (auto-advance)
+            const btn = document.getElementById('btn-pair-phones');
+            if (btn) {
+                const free = nextFreeSlotsCount(), total = slotCount();
+                btn.disabled = free === 0;
+                btn.classList.toggle('opacity-50', free === 0);
+                btn.innerText = free === 0 ? 'All Phones Paired' : (free < total ? 'Pair Next Phone' : 'Pair Phones');
             }
         }
         function markSlotConnected(slot, ok) { if (peers[slot]) peers[slot].connected = ok; buildPairList(); }
@@ -127,18 +133,26 @@
         }
 
         // ---- Camera QR scanning (jsQR) ----
-        async function scanQR(videoEl, onResult) {
+        // opts.continuous keeps the camera running and fires onResult for every NEW code (so the
+        // host can pair phone after phone off one camera); same code is debounced for ~1.5s.
+        async function scanQR(videoEl, onResult, opts) {
+            opts = opts || {};
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             videoEl.srcObject = stream; await videoEl.play();
             const c = document.createElement('canvas'); const cx = c.getContext('2d');
             const ctrl = { stop() { cancelAnimationFrame(ctrl.raf); stream.getTracks().forEach(t => t.stop()); } };
+            let lastData = null, lastAt = 0;
             function tick() {
                 if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
                     c.width = videoEl.videoWidth; c.height = videoEl.videoHeight;
                     cx.drawImage(videoEl, 0, 0, c.width, c.height);
                     const img = cx.getImageData(0, 0, c.width, c.height);
                     const code = (typeof jsQR !== 'undefined') ? jsQR(img.data, img.width, img.height) : null;
-                    if (code && code.data) { ctrl.stop(); onResult(code.data); return; }
+                    if (code && code.data) {
+                        if (!opts.continuous) { ctrl.stop(); onResult(code.data); return; }
+                        const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+                        if (code.data !== lastData || now - lastAt > 1500) { lastData = code.data; lastAt = now; onResult(code.data); }
+                    }
                 }
                 ctrl.raf = requestAnimationFrame(tick);
             }
@@ -157,12 +171,23 @@
         }
 
         // ---- HOST side ----
-        async function hostPair(slot) {
+        // One offer can only complete ONE peer connection, so to pair several phones from a
+        // single screen the host shows one QR at a time and AUTO-ADVANCES: a phone pairs, then
+        // the host instantly builds a fresh offer for the next free slot and refreshes the QR,
+        // all while the same camera keeps scanning for the next phone's reply. One button, no
+        // per-player clicking.
+        let pairSlot = null, pairAuto = false;
+        function setPairStatus(t) { const el = document.getElementById('pair-status'); if (el) el.innerText = t; }
+        function nextFreeSlot() { for (let s = 1; s <= slotCount(); s++) if (!(peers[s] && peers[s].connected)) return s; return null; }
+
+        // Build an offer + QR for one slot (shared by single-pair and the auto-advance loop).
+        async function hostOfferSlot(slot) {
+            pairSlot = slot;
             const pc = new RTCPeerConnection(RTC_CONFIG);
-            watchIce(pc, (t) => { const el = document.getElementById('pair-status'); if (el) el.innerText = t; });
+            watchIce(pc, setPairStatus);
             const dc = pc.createDataChannel('ctrl');
             peers[slot] = { pc, dc, connected: false };
-            dc.onopen = () => { markSlotConnected(slot, true); closePairModal(); try { dc.send(JSON.stringify({ a: 'welcome', slot: slot })); } catch (_) {} };
+            dc.onopen = () => { markSlotConnected(slot, true); try { dc.send(JSON.stringify({ a: 'welcome', slot: slot })); } catch (_) {} onSlotConnected(slot); };
             dc.onclose = () => markSlotConnected(slot, false);
             dc.onmessage = (e) => {
                 let m; try { m = JSON.parse(e.data); } catch (_) { return; }
@@ -174,30 +199,65 @@
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             await waitIce(pc);
-            document.getElementById('pair-title').innerText = 'Pair Player ' + slot;
-            document.getElementById('pair-status').innerText = 'Starting camera...';
-            makeQR(document.getElementById('pair-qr'), packSDP(pc.localDescription));
-            const modal = document.getElementById('pair-modal');
-            modal.classList.remove('hidden'); modal.classList.add('flex');
-            window._pairSlot = slot;
+            const qr = document.getElementById('pair-qr'); if (qr) makeQR(qr, packSDP(pc.localDescription));
+            const paired = slotCount() - (nextFreeSlotsCount());
+            setPairStatus(pairAuto ? `Scan with Player ${slot}'s phone  (${paired}/${slotCount()} paired)` : `Scan with Player ${slot}'s phone`);
+        }
+        function nextFreeSlotsCount() { let n = 0; for (let s = 1; s <= slotCount(); s++) if (!(peers[s] && peers[s].connected)) n++; return n; }
 
+        // A slot just connected: in auto mode, roll straight to the next phone; else close.
+        function onSlotConnected(slot) {
+            if (!pairAuto) { closePairModal(); return; }
+            const next = nextFreeSlot();
+            if (!next) { setPairStatus('All phones paired!'); setTimeout(closePairModal, 1200); return; }
+            hostOfferSlot(next);   // refresh the QR for the next phone; the camera keeps scanning
+        }
+
+        // The one camera scan that serves every phone in turn.
+        async function startAnswerScan() {
             try {
                 if (pairScan) pairScan.stop();
                 pairScan = await scanQR(document.getElementById('pair-video'), async (data) => {
                     try {
-                        const s = window._pairSlot;
-                        await peers[s].pc.setRemoteDescription(unpackSDP(data));
-                        document.getElementById('pair-status').innerText = 'reply received, connecting...';
-                    } catch (e) { document.getElementById('pair-status').innerText = 'invalid code, try again'; }
-                });
-                document.getElementById('pair-status').innerText = 'Scanning for reply...';
-            } catch (e) { 
-                document.getElementById('pair-status').innerText = 'camera blocked/missing: ' + e.message; 
-            }
+                        const ans = unpackSDP(data);
+                        if (ans.type !== 'answer') return;                 // ignore stray offer QRs
+                        const s = pairSlot;
+                        if (!peers[s] || peers[s].connected) return;       // already paired / nothing pending
+                        await peers[s].pc.setRemoteDescription(ans);
+                        setPairStatus(`Player ${s} replied, connecting...`);
+                    } catch (e) { setPairStatus('invalid code, try again'); }
+                }, { continuous: true });
+            } catch (e) { setPairStatus('camera blocked/missing: ' + e.message); }
+        }
+
+        function openPairModal(title) {
+            const t = document.getElementById('pair-title'); if (t) t.innerText = title;
+            setPairStatus('Starting camera...');
+            const modal = document.getElementById('pair-modal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+        }
+
+        // One-button entry point: pair every unpaired phone, one after another.
+        async function startPairing() {
+            const slot = nextFreeSlot();
+            if (!slot) return;                  // everyone already connected
+            pairAuto = true;
+            openPairModal('Pair Phones');
+            await hostOfferSlot(slot);
+            startAnswerScan();
+        }
+
+        // Single-slot pair (used for targeted re-pairing and by the test harness).
+        async function hostPair(slot) {
+            pairAuto = false;
+            openPairModal('Pair Player ' + slot);
+            await hostOfferSlot(slot);
+            startAnswerScan();
         }
 
         function closePairModal() {
             if (pairScan) { pairScan.stop(); pairScan = null; }
+            pairAuto = false; pairSlot = null;
             const modal = document.getElementById('pair-modal');
             modal.classList.add('hidden'); modal.classList.remove('flex');
         }

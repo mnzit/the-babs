@@ -165,7 +165,8 @@
                         <div class="bg-emerald-50 border-4 border-slate-900 rounded-3xl p-6 shadow-[0_8px_0_#0f172a]">
                             <h3 class="text-xl uppercase tracking-wider text-emerald-900 mb-2">Controllers</h3>
                             <p class="text-xs font-sans font-bold text-emerald-700 mb-4">Use phones on same WiFi.</p>
-                            <div id="pair-list" class="flex flex-col gap-2 mb-4"></div>
+                            <div id="pair-list" class="flex flex-col gap-2 mb-3"></div>
+                            <button id="btn-pair-phones" onclick="startPairing()" class="w-full py-3 mb-2 rounded-2xl border-4 border-slate-900 bg-indigo-500 text-white text-sm hover:-translate-y-1 hover:shadow-[0_4px_0_#0f172a] active:translate-y-1 active:shadow-none transition-all uppercase">Pair Phones</button>
                             <button onclick="enterJoinMode()" class="w-full py-3 rounded-2xl border-4 border-slate-900 bg-emerald-400 text-slate-900 text-sm hover:-translate-y-1 hover:shadow-[0_4px_0_#0f172a] active:translate-y-1 active:shadow-none transition-all uppercase">Join via Phone</button>
                         </div>
                     </div>
@@ -195,7 +196,7 @@
             <div class="max-w-xl w-full space-y-6 text-white font-black bubbly-font">
                 <h2 class="text-3xl font-black text-amber-400" id="pair-title">Pair Player 1</h2>
                 
-                <p class="text-sm text-slate-300 mb-2 font-sans">1. Scan this QR with your phone. &nbsp;&nbsp; 2. Hold the phone's reply to this camera.</p>
+                <p class="text-sm text-slate-300 mb-2 font-sans">1. Each phone scans this QR. &nbsp; 2. Hold each phone's reply to this camera — the next code appears automatically.</p>
                 
                 <div class="flex flex-col sm:flex-row gap-6 items-center justify-center">
                     <div id="pair-qr" class="bg-white p-3 rounded-3xl border-4 border-slate-900 shadow-[0_8px_0_#0f172a]"></div>
