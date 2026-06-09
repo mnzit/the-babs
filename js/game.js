@@ -42,13 +42,13 @@
         function setSpeed(kind, value) {
             const v = Math.max(0.5, Math.min(2, parseFloat(value) || 1));
             Babs.CONFIG.speed[kind] = v;
-            try { localStorage.setItem('babs.speed.' + kind, String(v)); } catch (e) {}
+            try { localStorage.setItem('babs.speed.v2.' + kind, String(v)); } catch (e) {}
             syncSpeedUI();
         }
         function loadSpeedSettings() {
             ['drop', 'pendulum'].forEach(kind => {
                 try {
-                    const saved = parseFloat(localStorage.getItem('babs.speed.' + kind));
+                    const saved = parseFloat(localStorage.getItem('babs.speed.v2.' + kind));
                     if (!isNaN(saved)) Babs.CONFIG.speed[kind] = Math.max(0.5, Math.min(2, saved));
                 } catch (e) {}
             });

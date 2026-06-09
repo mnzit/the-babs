@@ -20,7 +20,7 @@ Babs.CONFIG = {
   // ---- player-tunable speed multipliers (live, driven by the lobby sliders) ----
   //      drop     = how fast a released house falls (engine gravity + initial kick)
   //      pendulum = crane swing angular speed (visual swing + drop trajectory stay in sync)
-  speed: { drop: 1.0, pendulum: 1.0 },
+  speed: { drop: 2.0, pendulum: 2.0 },
   // ---- frame-rate-independent simulation: advance the sim in fixed real-time slices
   //      so wall-clock game speed is identical on a 60Hz laptop, a 144Hz monitor, and
   //      under heavy 4-lane load. maxStepsPerFrame caps catch-up after a stall/tab-switch.
